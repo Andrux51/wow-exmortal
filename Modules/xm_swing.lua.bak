@@ -1,0 +1,656 @@
+--embedded libs
+local XM_SMedia = LibStub("LibSharedMedia-3.0")
+local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+
+--spells that reset swing timer (0 = none, 1 = mh, 2 = oh, 3 = range, 4 = both, 5 = either)
+local xm_SwingReset = {
+    --non-specific
+    ["Throw"] = 3,
+    ["Shoot"] = 3,
+    ["Hand of Justice"] = 5,
+    --warrior
+    ["Intervene"] = 0,
+    ["Slam"] = 0,
+    ["Charge"] = 0,
+    ["Intercept"] = 0,
+    ["Cleave"] = 1,
+    ["Heroic Strike"] = 1,
+    --druid
+    ["Feral Charge"] = 0,
+    ["Swipe"] = 1,
+    ["Maul"] = 1,
+    --hunter
+    ["Auto Shot"] = 3,
+    ["Raptor Strike"] = 3,
+}
+
+--warrior spells that cause flurry (1 = yes, 0 = no)
+local xm_SwingFlurry = {
+  ["Melee"] = 1,
+  --arms
+  ["Deep Wounds"] = 0,
+  ["Hamstring"] = 1,
+  ["Heroic Strike"] = 1,
+  ["Mocking Blow"] = 1,	--?
+  ["Mortal Strike"] = 1,
+  ["Overpower"] = 1,
+  ["Rend"] = 0,
+  ["Retaliation"] = 1, 	--?
+  ["Thunder Clap"] = 0,
+  --fury
+  ["Bloodthirst"] = 1,
+  ["Cleave"] = 1,
+  ["Execute"] = 1,
+  ["Pummel"] = 1,
+  ["Slam"] = 0,
+  ["Sweeping Strikes"] = 1,
+  ["Victory Rush"] = 1,
+  ["Whirlwind"] = 1,
+  --protection
+  ["Concussion Blow"] = 1,
+  ["Devastate"] = 1,
+  ["Revenge"] = 1,
+  ["Shield Bash"] = 1,
+  ["Shield Slam"] = 1,
+  --nonspecific
+  ["Sword Specialization"] = 0,
+  ["Hand of Justice"] = 1,
+}
+
+--local variables
+local swingmove = false
+local holdtime = 0
+local pausetime = 0
+
+local movex = 0
+local movey = 0
+
+--swing frame graphic tables
+local SwingBarCount = 3
+local swingframe = {}
+--swingframe elements: lagbar,swingbar,timebar,startspeed,timeleft,spark
+
+--global variables
+XMSWING.HAND = {}
+--"HAND" elements: startspeed,starttime,endtime,timeleft,lastdelay
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:OnInitialize()
+--called when addon loads
+
+    --initialize DB for new users
+    if (not XM_DB["XMSWING"]) then
+        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Swing Frame: "..UnitName("player").." - "..GetRealmName():trim())
+        XM_DB["XMSWING"] = {}
+        --write default values to the current profile (too bad they can't be sorted)
+        local key, value
+        for key, value in pairs(XMSWING.DEFAULTS) do
+            XM_DB["XMSWING"][key] = value
+        end
+    end
+
+    local i = 1
+    while (i <= SwingBarCount) do
+        XMSWING.HAND[i] = {}
+        XMSWING.HAND[i].STARTSPEED = 0
+        XMSWING.HAND[i].STARTTIME = 0
+        XMSWING.HAND[i].ENDTIME = 0
+        XMSWING.HAND[i].TIMELEFT = 0
+        XMSWING.HAND[i].LASTDELAY = 0
+        i = i + 1
+    end
+
+    --initialize swing speed
+    XMSWING:SpeedCheck(false, 0)
+
+    --initialize swing frame
+    XMSWING:CreateSwingFrame()
+
+    --register events
+    XMSWING:RegisterEvent("UNIT_INVENTORY_CHANGED")
+    XMSWING:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    XMSWING:RegisterEvent("UNIT_SPELLCAST_START")
+    XMSWING:RegisterEvent("UNIT_SPELLCAST_STOP")
+    XMSWING:RegisterEvent("UNIT_SPELLCAST_FAILED")
+    XMSWING:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_FAILED")
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:UNIT_SPELLCAST_START(_,unit)
+--
+
+    if (unit == "player") then
+        local spell,rank,displayname,icon,starttime,endtime,istradeskill = UnitCastingInfo(unit)
+        if (spell == "Slam") then
+            holdtime = GetTime()
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:UNIT_SPELLCAST_STOP(_,unit)
+--
+
+    if (unit == "player") then
+        holdtime = 0
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:UNIT_SPELLCAST_FAILED(_,unit)
+--
+    if (unit == "player") then
+        holdtime = -1
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:UNIT_INVENTORY_CHANGED(_,unit)
+--check for weapon swap to reset swing timer
+
+    if (unit == "player") then
+
+        local oldhand = {}
+        local i = 1
+        while (i <= #XMSWING.HAND) do
+            oldhand[i] = XMSWING.HAND[i].STARTSPEED
+            i = i + 1
+        end
+
+        XMSWING:SpeedCheck(false, 0)
+
+        i = 1
+        while (i <= #XMSWING.HAND) do
+            if (oldhand[i] ~= XMSWING.HAND[i].STARTSPEED) then XMSWING:SwingStart(i) end
+            i = i + 1
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:SpeedCheck(inpskill, inpspeed)
+--check swing speed, add flurry if needed
+
+    XMSWING.HAND[1].STARTSPEED,XMSWING.HAND[2].STARTSPEED = UnitAttackSpeed("player")
+    XMSWING.HAND[3].STARTSPEED,_,_,_,_,_ = UnitRangedDamage("player")
+
+    local i = 1
+    while (i <= #XMSWING.HAND) do
+        if (not XMSWING.HAND[i].STARTSPEED) then XMSWING.HAND[i].STARTSPEED = 0 end
+        i = i + 1
+    end
+    --minimum swing speed 0.5 ?
+
+    --set flurry speed if necessary (blizzard doesn't trigger fast enough)
+    if (XM.CheckFlurry) then
+        --check skills that trigger flurry
+        if (inpskill and inpspeed > 0) then
+            for key, value in pairs(xm_SwingFlurry) do
+                if (key == inpskill) then
+                    inpspeed = (value * inpspeed)
+                end
+            end
+        end
+
+        i = 1
+        if (inpspeed > 0) then
+            while (i <= 2) do
+                if (XMSWING.HAND[i].STARTSPEED < XMSWING.HAND[i].STARTSPEED / (1 + inpspeed)) then
+                    XMSWING.HAND[i].STARTSPEED = XMSWING.HAND[i].STARTSPEED / (1 + inpspeed)
+                else
+                    XM.CheckFlurry = false
+                end
+                i = i + 1
+            end
+        elseif (inpspeed < 0) then
+            while (i <= 2) do
+                if (XMSWING.HAND[i].STARTSPEED > XMSWING.HAND[i].STARTSPEED * (1 - inpspeed)) then
+                    XMSWING.HAND[i].STARTSPEED = XMSWING.HAND[i].STARTSPEED * (1 - inpspeed)
+                else
+                    XM.CheckFlurry = false
+                end
+                i = i + 1
+            end
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:ParryCheck(inpskill, inpspeed)
+--decrease current swing time
+
+    --parry mechanic = time left for current swing reduced by 50%
+    local parryspeed = 0.50
+
+    --parry only affects main hand
+    local i = 1
+    while (i <= 1) do
+        --check time remaining
+        if (XMSWING.HAND[i].STARTSPEED - (GetTime() - XMSWING.HAND[i].STARTTIME) >= 0) then
+            --decrease time remaining by parryspeed
+            XMSWING.HAND[i].STARTTIME = XMSWING.HAND[i].STARTTIME - (XMSWING.HAND[i].STARTSPEED - (GetTime() - XMSWING.HAND[i].STARTTIME))*(parryspeed)
+        end
+        i = i + 1
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:SwingCheck(inpskill, inpspeed)
+--called from XM when a hit is detected
+
+    --set actual swing speed
+    XMSWING:SpeedCheck(inpskill, inpspeed)
+
+    local handstart = 0
+    if (inpskill == "Melee") then
+        --figure out which hand to start
+        if (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then
+            handstart = 1
+        elseif (XMSWING.HAND[2].STARTSPEED > 0) then
+            handstart = 2
+        else
+            handstart = 1
+        end
+    elseif (inpskill == "Range") then
+        handstart = 3
+    end
+
+    --reset designated hand
+    if (handstart > 0) then
+        XMSWING:SwingStart(handstart)
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:SwingStart(inphand)
+--start swing timer
+
+   if (inphand == 4) then
+       XMSWING:SwingStart(1)
+       XMSWING:SwingStart(2)
+   end
+   if (inphand == 1 or inphand == 2 or inphand == 3) then
+        XMSWING.HAND[inphand].STARTTIME = GetTime()
+        XMSWING.HAND[inphand].TIMELEFT = XMSWING.HAND[inphand].STARTSPEED - (GetTime() - XMSWING.HAND[inphand].STARTTIME)
+        if XMSWING.HAND[inphand].TIMELEFT < 0 then
+            XMSWING.HAND[inphand].TIMELEFT = 0
+        end
+        --combat log lag compensation
+        XMSWING.HAND[inphand].LASTDELAY = GetTime() - XMSWING.HAND[inphand].STARTTIME - XMSWING.HAND[inphand].STARTSPEED
+        if (XMSWING.HAND[inphand].LASTDELAY < 0.001) then
+            XMSWING.HAND[inphand].LASTDELAY = 0
+        end
+        swingframe[inphand]:Show()
+   end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:COMBAT_LOG_EVENT_UNFILTERED(_,timestamp, event, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve)
+--slam spellcast finish, or any instant
+
+    if (srcGUID == UnitGUID("player") and (event == "SPELL_DAMAGE" or event == "SPELL_MISSED")) then
+        --check if spell resets swing
+        local handstart = 0
+        local key, value
+        for key, value in pairs(xm_SwingReset) do
+           if (key == two) then
+                handstart = value
+            end
+        end
+
+        --reset swing timer if needed
+        XMSWING:SwingStart(handstart)
+    end
+
+    --add time for slam
+    if (event == "SPELL_DAMAGE" or event == "SPELL_MISSED") and (two == "Slam") then
+        if (not XM.TalentSlam) then XM.TalentSlam = 0 end
+        local i = 1
+        while (i <= #XMSWING.HAND) do
+--            XMSWING.HAND[i].STARTTIME = XMSWING.HAND[i].STARTTIME + 1.5 - (0.5 * XM.TalentSlam)
+            i = i + 1
+        end
+    end
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:OnUpdate(elapsed)
+--update screen objects
+
+    if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
+        xm_InCombat = false
+    end
+
+    local i = 1
+    local _,_,latency = GetNetStats()
+    latency = latency / 1000
+    local lagwidth
+    local swingwidth
+
+    if (holdtime >= 1) then
+        pausetime = GetTime() - holdtime
+    elseif (holdtime <= -1) then
+        pausetime = 0
+    end
+
+    i = 1
+--    while (i <= 2) do
+--        --check time remaining
+--        if (holdtime >= 1) then
+--            --increase time remaining by holdtime
+--            XMSWING.HAND[i].STARTTIME = XMSWING.HAND[i].STARTTIME + (GetTime() - holdtime)
+--        end
+--        i = i + 1
+--    end
+
+    i = 1
+    while (i <= #XMSWING.HAND) do
+        XMSWING.HAND[i].TIMELEFT = XMSWING.HAND[i].STARTSPEED - (GetTime() - XMSWING.HAND[i].STARTTIME) + pausetime
+--if i == 1 and (GetTime() - XMSWING.HAND[i].STARTTIME) > XMSWING.HAND[i].STARTSPEED then XM:Print(XMSWING.HAND[i].TIMELEFT) end
+        if XMSWING.HAND[i].TIMELEFT < 0 then XMSWING.HAND[i].TIMELEFT = 0 end
+
+        if (XMSWING.HAND[i].STARTSPEED > 0) then
+            swingframe[i].startspeed:SetText(("%.2f"):format(XMSWING.HAND[i].STARTSPEED))
+        else
+            swingframe[i].startspeed:SetText("")
+            if (swingmove == false) then swingframe[i]:Hide() end
+        end
+
+        if (XMSWING.HAND[i].TIMELEFT <= 0) then
+            swingframe[i].timeleft:SetText("")
+            swingframe[i].swingbar:Hide()
+            swingframe[i].lagbar:Hide()
+            if (xm_InCombat == false and swingmove == false) then
+                swingframe[i]:Hide()
+            end
+        else
+            lagwidth = swingframe[i]:GetWidth() * (latency - XMSWING.HAND[i].LASTDELAY) / XMSWING.HAND[i].STARTSPEED
+            swingwidth = swingframe[i]:GetWidth() * (XMSWING.HAND[i].STARTSPEED - XMSWING.HAND[i].TIMELEFT) / XMSWING.HAND[i].STARTSPEED
+
+            if (lagwidth < swingframe[i]:GetWidth() * 0.01) then lagwidth = swingframe[i]:GetWidth() * 0.01 end
+            if (swingwidth < swingframe[i]:GetWidth() * 0.01) then swingwidth = swingframe[i]:GetWidth() * 0.01 end
+
+            swingframe[i].lagbar:SetWidth(lagwidth)
+            swingframe[i].swingbar:SetWidth(swingwidth)
+
+--            swingframe[i].timeleft:SetText(("%.1f"):format(XMSWING.HAND[i].TIMELEFT))
+
+            if ((swingframe[i].lagbar:GetWidth() + swingframe[i].swingbar:GetWidth()) >= swingframe[i]:GetWidth()) then
+                swingframe[i].swingbar.texture:SetVertexColor(1,1,0,1); --yellow
+            else
+                swingframe[i].swingbar.texture:SetVertexColor(1,0,0,1); --red
+            end
+
+            swingframe[i].swingbar:Show()
+            swingframe[i].lagbar:Show()
+        end
+
+        i = i + 1
+    end
+
+    if (swingframe[1]:IsVisible() == 1) or (swingframe[2]:IsVisible() == 1) or (swingframe[3]:IsVisible() == 1) then
+        local apbase,appos,apneg = UnitAttackPower("player")
+        local attackpower = apbase + appos - apneg
+        XM_SWINGFRAME.left:SetText(attackpower.." AP")
+
+        local crit = GetCritChance()
+        XM_SWINGFRAME.center:SetText(("%.2f"):format(crit).." CRIT")
+
+        --hit rating formula taken from StatLogic-1.0
+        local hitrating = GetCombatRating(6)
+        hitrating = hitrating/10
+        local playerlevel = UnitLevel("player")
+
+        if (playerlevel < 10) then
+            hitpercent = hitrating/(2/52)
+        elseif (playerlevel < 60) then
+            hitpercent = hitrating/((playerlevel - 8)/52)
+        elseif (playerlevel <= 70) then
+            hitpercent = hitrating/(82/(262-3*playerlevel))
+        elseif (playerlevel <= 80) then
+            hitpercent = hitrating/((82/52)*(131/63)^((playerlevel-70)/10))
+        end
+
+        if (xm_PlayerClassName == "SHAMAN") and (XM:TalentCheck("Dual Wield Specialization") ~= nil) and (XMSWING.HAND[2].STARTSPEED > 0) then
+            hitpercent = hitpercent + 2*(XM:TalentCheck("Dual Wield Specialization"))
+        elseif (xm_PlayerClassName == "WARRIOR") and (XM:TalentCheck("Precision") ~= nil) then
+            hitpercent = hitpercent + XM:TalentCheck("Precision")
+        end
+
+        i = 1
+        --gather all player buffs
+        while (i <= 40) do
+            buffName,buffRank,buffIcon,buffCount,buffType,buffDuration,buffLeft,_,_ = UnitBuff("player", i)
+            if (buffName) then
+                if (buffName == "Heroic Presence") then 
+                    hitpercent = hitpercent + 1
+                    i = 41
+                end
+                i = i + 1
+            else
+                i = 41 
+            end
+        end
+
+        XM_SWINGFRAME.right:SetText(("%.2f"):format(hitpercent).." HIT")
+
+        XM_SWINGFRAME.left:ClearAllPoints()
+        XM_SWINGFRAME.right:ClearAllPoints()
+        XM_SWINGFRAME.center:ClearAllPoints()
+
+        if (swingframe[2]:IsVisible() == 1) then
+            XM_SWINGFRAME.left:SetPoint("TOPLEFT", swingframe[2], "BOTTOMLEFT")
+            XM_SWINGFRAME.right:SetPoint("TOPRIGHT", swingframe[2], "BOTTOMRIGHT")
+            XM_SWINGFRAME.center:SetPoint("TOP", swingframe[2], "BOTTOM")
+        elseif (swingframe[1]:IsVisible() == 1) then
+            XM_SWINGFRAME.left:SetPoint("TOPLEFT", swingframe[1], "BOTTOMLEFT")
+            XM_SWINGFRAME.right:SetPoint("TOPRIGHT", swingframe[1], "BOTTOMRIGHT")
+            XM_SWINGFRAME.center:SetPoint("TOP", swingframe[1], "BOTTOM")
+        elseif (swingframe[3]:IsVisible() == 1) then
+            XM_SWINGFRAME.left:SetPoint("TOPLEFT", swingframe[3], "BOTTOMLEFT")
+            XM_SWINGFRAME.right:SetPoint("TOPRIGHT", swingframe[3], "BOTTOMRIGHT")
+            XM_SWINGFRAME.center:SetPoint("TOP", swingframe[3], "BOTTOM")
+        end
+    else
+        XM_SWINGFRAME.left:SetText("")
+        XM_SWINGFRAME.right:SetText("")
+        XM_SWINGFRAME.center:SetText("")
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:CreateSwingFrame()
+
+    local settings = XM_DB["XMSWING"]
+
+    --main swing frame
+    if (not XM_SWINGFRAME) then
+        XM_SWINGFRAME = CreateFrame("Frame", "XM Swing Frame", UIParent)
+        XM_SWINGFRAME:SetPoint("TOP", UIParent, "CENTER", settings["SWINGFRAME"]["POSX"], settings["SWINGFRAME"]["POSY"])
+    end
+    XM_SWINGFRAME:SetFrameStrata(settings["SWINGFRAME"]["STRATA"])
+    XM_SWINGFRAME:SetHeight((settings["SWINGFRAME"]["HEIGHT"])*SwingBarCount)
+    XM_SWINGFRAME:SetWidth(settings["SWINGFRAME"]["WIDTH"])
+    XM_SWINGFRAME:SetScale(settings["SWINGFRAME"]["SCALE"])
+    XM_SWINGFRAME:SetAlpha(settings["SWINGFRAME"]["ALPHA"])
+    XM_SWINGFRAME:SetScript("OnUpdate", function() XMSWING:OnUpdate(arg1) end)
+
+    --movable swing frame
+    XM_SWINGFRAME:SetMovable(true)
+    XM_SWINGFRAME:SetClampedToScreen(true)
+    XM_SWINGFRAME:EnableMouse(true)
+    XM_SWINGFRAME:RegisterForDrag("LeftButton")
+    XM_SWINGFRAME:SetScript("OnMouseDown", function() XMSWING:OnClick(arg1) end)
+    XM_SWINGFRAME:SetScript("OnMouseUp", function() XMSWING:OnDragStop(arg1) end)
+
+    local i = 1
+    while (i <= SwingBarCount) do
+        if (not swingframe[i]) then
+            swingframe[i] = CreateFrame("Frame", "XM Swing Frame"..i, XM_SWINGFRAME)
+            if (i == 1) then
+                swingframe[i]:SetPoint("LEFT", XM_SWINGFRAME)
+                swingframe[i]:SetPoint("RIGHT", XM_SWINGFRAME)
+            elseif (i == 2) then
+                swingframe[i]:SetPoint("BOTTOMLEFT", XM_SWINGFRAME)
+                swingframe[i]:SetPoint("BOTTOMRIGHT", XM_SWINGFRAME)
+            elseif (i == 3) then
+                swingframe[i]:SetPoint("TOPLEFT", XM_SWINGFRAME)
+                swingframe[i]:SetPoint("TOPRIGHT", XM_SWINGFRAME)
+            end
+        end
+        swingframe[i]:SetHeight((XM_SWINGFRAME:GetHeight())/3)
+        swingframe[i]:SetWidth(XM_SWINGFRAME:GetWidth())
+       
+        if (not swingframe[i].texture) then
+            swingframe[i].texture = swingframe[i]:CreateTexture()
+            swingframe[i].texture:SetAllPoints(swingframe[i])
+        end
+        swingframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["BACKTEXTURE"]))
+        swingframe[i].texture:SetVertexColor(settings["SWINGHAND"..i]["BACKCOLOR"].r,settings["SWINGHAND"..i]["BACKCOLOR"].g,settings["SWINGHAND"..i]["BACKCOLOR"].b,settings["SWINGHAND"..i]["BACKCOLOR"].a)
+
+        if (not swingframe[i].lagbar) then
+            swingframe[i].lagbar = CreateFrame("Frame", "swingframe"..i.."lagbar", swingframe[i])
+            swingframe[i].lagbar:SetPoint("RIGHT", swingframe[i])
+        end
+        swingframe[i].lagbar:SetFrameLevel((swingframe[i]:GetFrameLevel())+1)
+        swingframe[i].lagbar:SetHeight(swingframe[i]:GetHeight())
+        swingframe[i].lagbar:SetWidth(swingframe[i]:GetWidth())
+
+        if (not swingframe[i].lagbar.texture) then
+            swingframe[i].lagbar.texture = swingframe[i].lagbar:CreateTexture()
+            swingframe[i].lagbar.texture:SetAllPoints(swingframe[i].lagbar)
+        end
+        swingframe[i].lagbar.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["LAGTEXTURE"]))
+        swingframe[i].lagbar.texture:SetVertexColor(settings["SWINGHAND"..i]["LAGCOLOR"].r,settings["SWINGHAND"..i]["LAGCOLOR"].g,settings["SWINGHAND"..i]["LAGCOLOR"].b,settings["SWINGHAND"..i]["LAGCOLOR"].a)
+
+        if (not swingframe[i].swingbar) then
+            swingframe[i].swingbar = CreateFrame("Frame", "swingframe"..i.."swingbar", swingframe[i])
+            swingframe[i].swingbar:SetPoint("LEFT", swingframe[i])
+        end
+        swingframe[i].swingbar:SetFrameLevel((swingframe[i]:GetFrameLevel())+2)
+        swingframe[i].swingbar:SetHeight(swingframe[i]:GetHeight())
+        swingframe[i].swingbar:SetWidth(swingframe[i]:GetWidth())
+
+        if (not swingframe[i].swingbar.texture) then
+            swingframe[i].swingbar.texture = swingframe[i].swingbar:CreateTexture()
+            swingframe[i].swingbar.texture:SetAllPoints(swingframe[i].swingbar)
+        end
+        swingframe[i].swingbar.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["SWINGTEXTURE"]))
+        swingframe[i].swingbar.texture:SetVertexColor(settings["SWINGHAND"..i]["SWINGCOLOR"].r,settings["SWINGHAND"..i]["SWINGCOLOR"].g,settings["SWINGHAND"..i]["SWINGCOLOR"].b,settings["SWINGHAND"..i]["SWINGCOLOR"].a)
+    
+        if (not swingframe[i].timebar) then
+            swingframe[i].timebar = CreateFrame("Frame", "swingframe"..i.."timebar", swingframe[i])
+            swingframe[i].timebar:SetAllPoints(swingframe[i])
+        end
+        swingframe[i].timebar:SetFrameLevel((swingframe[i]:GetFrameLevel())+3)
+        swingframe[i].timebar:SetHeight(swingframe[i]:GetHeight())
+        swingframe[i].timebar:SetWidth(swingframe[i]:GetWidth())
+    
+        if (not swingframe[i].startspeed) then
+            swingframe[i].startspeed = swingframe[i].timebar:CreateFontString("swingframe"..i.."startspeed", "OVERLAY", "GameFontNormal")
+            swingframe[i].startspeed:SetPoint("LEFT", swingframe[i].timebar)
+        end
+        swingframe[i].startspeed:SetFont(XM_SMedia:Fetch("font",settings["SWINGHAND"..i]["TIMEFONT"]), (swingframe[i].timebar:GetHeight())-2)
+        swingframe[i].startspeed:SetTextColor(settings["SWINGHAND"..i]["TIMECOLOR"].r,settings["SWINGHAND"..i]["TIMECOLOR"].g,settings["SWINGHAND"..i]["TIMECOLOR"].b, settings["SWINGHAND"..i]["TIMECOLOR"].a)
+
+        if (not swingframe[i].timeleft) then
+            swingframe[i].timeleft = swingframe[i]:CreateFontString("swingframe"..i.."timeleft", "OVERLAY", "GameFontNormal")
+            swingframe[i].timeleft:SetPoint("RIGHT", swingframe[i])
+        end
+        swingframe[i].timeleft:SetFont(XM_SMedia:Fetch("font",settings["SWINGHAND"..i]["LEFTFONT"]), (swingframe[i].timebar:GetHeight())-2)
+        swingframe[i].timeleft:SetTextColor(settings["SWINGHAND"..i]["LEFTCOLOR"].r,settings["SWINGHAND"..i]["LEFTCOLOR"].g,settings["SWINGHAND"..i]["LEFTCOLOR"].b, settings["SWINGHAND"..i]["LEFTCOLOR"].a)
+
+        if (not swingframe[i].spark) then
+            swingframe[i].spark = CreateFrame("Frame", "swingframe"..i.."spark", swingframe[i].lagbar)
+            swingframe[i].spark:SetPoint("LEFT", swingframe[i].lagbar)
+        end
+        swingframe[i].spark:SetFrameLevel((swingframe[i]:GetFrameLevel())+4)
+        swingframe[i].spark:SetHeight(swingframe[i]:GetHeight())
+        swingframe[i].spark:SetWidth(swingframe[i]:GetWidth() * 0.01)
+
+        if (not swingframe[i].spark.texture) then
+            swingframe[i].spark.texture = swingframe[i].spark:CreateTexture()
+            swingframe[i].spark.texture:SetAllPoints(swingframe[i].spark)
+        end
+        swingframe[i].spark.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["SPARKTEXTURE"]))
+        swingframe[i].spark.texture:SetVertexColor(settings["SWINGHAND"..i]["SPARKCOLOR"].r,settings["SWINGHAND"..i]["SPARKCOLOR"].g,settings["SWINGHAND"..i]["SPARKCOLOR"].b,settings["SWINGHAND"..i]["SPARKCOLOR"].a)
+   
+        i = i + 1
+    end
+
+    if (not XM_SWINGFRAME.left) then
+        XM_SWINGFRAME.left = XM_SWINGFRAME:CreateFontString("swingframe left", "OVERLAY", "GameFontNormal")
+        XM_SWINGFRAME.left:SetPoint("TOPLEFT", XM_SWINGFRAME, "BOTTOMLEFT")
+    end
+    XM_SWINGFRAME.left:SetFont(XM_SMedia:Fetch("font",settings["SWINGFRAME"]["APFONT"]), (settings["SWINGFRAME"]["HEIGHT"])-2)
+    XM_SWINGFRAME.left:SetTextColor(settings["SWINGFRAME"]["APCOLOR"].r,settings["SWINGFRAME"]["APCOLOR"].g,settings["SWINGFRAME"]["APCOLOR"].b,settings["SWINGFRAME"]["APCOLOR"].a)
+
+    if (not XM_SWINGFRAME.center) then
+        XM_SWINGFRAME.center = XM_SWINGFRAME:CreateFontString("swingframe center", "OVERLAY", "GameFontNormal")
+        XM_SWINGFRAME.center:SetPoint("TOP", XM_SWINGFRAME, "BOTTOM")
+    end
+    XM_SWINGFRAME.center:SetFont(XM_SMedia:Fetch("font",settings["SWINGFRAME"]["CRITFONT"]), (settings["SWINGFRAME"]["HEIGHT"])-2)
+    XM_SWINGFRAME.center:SetTextColor(settings["SWINGFRAME"]["CRITCOLOR"].r,settings["SWINGFRAME"]["CRITCOLOR"].g,settings["SWINGFRAME"]["CRITCOLOR"].b,settings["SWINGFRAME"]["CRITCOLOR"].a)
+
+    if (not XM_SWINGFRAME.right) then
+        XM_SWINGFRAME.right = XM_SWINGFRAME:CreateFontString("swingframe right", "OVERLAY", "GameFontNormal")
+        XM_SWINGFRAME.right:SetPoint("TOPRIGHT", XM_SWINGFRAME, "BOTTOMRIGHT")
+    end
+    XM_SWINGFRAME.right:SetFont(XM_SMedia:Fetch("font",settings["SWINGFRAME"]["HITFONT"]), (settings["SWINGFRAME"]["HEIGHT"])-2)
+    XM_SWINGFRAME.right:SetTextColor(settings["SWINGFRAME"]["HITCOLOR"].r,settings["SWINGFRAME"]["HITCOLOR"].g,settings["SWINGFRAME"]["HITCOLOR"].b,settings["SWINGFRAME"]["HITCOLOR"].a)
+
+    XM_SWINGFRAME:Show()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:OnClick(inpbutton)
+
+    if (inpbutton == "LeftButton" and IsControlKeyDown()) then
+    elseif (inpbutton == "LeftButton" and IsShiftKeyDown()) then
+        swingmove = true
+        movex, movey = GetCursorPosition()
+        XM_SWINGFRAME:Show()
+        local i = 1
+        while (i <= #swingframe) do
+            swingframe[i]:Show()
+            i = i + 1
+        end
+        XM_SWINGFRAME:StartMoving()
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:OnDragStop()
+--save position
+
+    XM_SWINGFRAME:StopMovingOrSizing()
+    swingmove = false
+
+    XMSWING:SavePosition()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMSWING:SavePosition()
+--save position
+
+    local cursorx, cursory = GetCursorPosition()
+    movex = cursorx - movex
+    movey = cursory - movey
+
+    XM_DB["XMSWING"]["SWINGFRAME"]["POSX"] = XM_DB["XMSWING"]["SWINGFRAME"]["POSX"] + movex
+    XM_DB["XMSWING"]["SWINGFRAME"]["POSY"] = XM_DB["XMSWING"]["SWINGFRAME"]["POSY"] + movey
+
+end

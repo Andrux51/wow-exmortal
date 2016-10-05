@@ -1,0 +1,2 @@
+Modules are integrated into the eXMortal core file (xm.lua) and contain functions that are called explicitly called from that file.
+Modules can be removed or disabled without destroying the integrity of the core addon, but other modules may be affected.

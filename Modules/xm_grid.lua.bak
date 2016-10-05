@@ -1,0 +1,482 @@
+--XM object (REQUIRED)
+XMGRID = LibStub("AceAddon-3.0"):NewAddon("XMGRID", "AceEvent-3.0", "AceConsole-3.0")
+
+--embedded libs
+local XM_SMedia = LibStub("LibSharedMedia-3.0")
+
+--local variables
+local gridmove = false
+local cellheight = 30
+local cellwidth = 60
+local cellxspace = 4
+local cellyspace = 4
+
+--graphic tables
+local partycount = 5
+local groupcount = 8
+local gridframe = {}
+local partymarker = {}
+
+local movex = 0
+local movey = 0
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:OnInitialize()
+--called when addon loads
+
+    --initialize grid frame
+    XMGRID:CreateGridFrame()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:OnUpdate(elapsed)
+--update screen objects
+
+    if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
+        xm_InCombat = false
+    end
+
+    local i,j = 1,1
+    local mygroup = 0
+    local showgrid = 0
+    local subgroup = 0
+    local raid = false
+    local group = {}
+
+    i = 1
+    while (i <= partycount*groupcount) do
+        if (UnitName("raid"..i)) then
+            _,_,subgroup,_,_,_,_,_,_,_,_ = GetRaidRosterInfo(i)
+            if (UnitName("raid"..i) == UnitName("player")) then
+                mygroup = subgroup
+            end
+            j = 1
+            while (j <= groupcount) do
+                if (not group[j]) then group[j] = {} end
+                if (subgroup == j) then
+                    tinsert(group[j], i)
+                end
+                j = j + 1
+            end
+
+            if (i >= 35) then
+                showgrid = 40
+            elseif (i >= 20) then
+                showgrid = 25
+            elseif (i >= 10) then
+                showgrid = 10
+            else
+                showgrid = 5
+            end
+            raid = true
+            i = i + 1
+        else
+            i = partycount*groupcount + 1
+        end
+    end
+
+    if (mygroup == 0) then
+        i = 1
+        while (i <= partycount) do
+            if (UnitName(("party"..i))) then
+                showgrid = 5
+                i = partycount + 1
+            end
+            i = i + 1
+        end
+    end
+
+    --party marker
+    if (mygroup > 0 and showgrid/5 >= mygroup) then
+        XM_GRIDFRAMEP:ClearAllPoints()
+        XM_GRIDFRAMEP:SetPoint("TOPLEFT", XM_GRIDFRAME, "TOPLEFT", (mygroup - 1)*cellwidth + (mygroup - 1)*cellxspace, 0)
+        XM_GRIDFRAMEP:Show()
+    else
+        XM_GRIDFRAMEP:Hide()
+    end
+
+    if (showgrid > 0) then
+        XM_GRIDFRAME:SetHeight(partycount*cellheight + partycount*cellyspace)
+        XM_GRIDFRAME:SetWidth((showgrid/5)*cellwidth + (showgrid/5)*cellxspace)
+    else
+        XM_GRIDFRAME:SetHeight(0.01)
+        XM_GRIDFRAME:SetWidth(0.01)
+    end
+
+    i = partycount*groupcount
+    while (i > showgrid) do
+        gridframe[i].mana:Hide()
+        gridframe[i].health:Hide()
+        gridframe[i].name:Hide()
+        i = i - 1
+    end
+
+
+    local gridplayer
+    local gridmanatype
+    local gridmanamax
+    local gridmanapercent
+    local gridhealthmax
+    local gridhealthpercent
+    local gridhealthalpha
+    local classtext,classname,classcolor
+
+    i = 1
+    while (i <= showgrid) do
+        if (raid == true) then
+            if (i >= 1 and i <= 5) then
+                if (#group[1] > 0) then
+                    gridplayer = "raid"..group[1][1]
+                    tremove(group[1], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 6 and i <= 10) then
+                if (#group[2] > 0) then
+                    gridplayer = "raid"..group[2][1]
+                    tremove(group[2], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 11 and i <= 15) then
+                if (#group[3] > 0) then
+                    gridplayer = "raid"..group[3][1]
+                    tremove(group[3], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 16 and i <= 20) then
+                if (#group[4] > 0) then
+                    gridplayer = "raid"..group[4][1]
+                    tremove(group[4], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 21 and i <= 25) then
+                if (#group[5] > 0) then
+                    gridplayer = "raid"..group[5][1]
+                    tremove(group[5], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 26 and i <= 30) then
+                if (#group[6] > 0) then
+                    gridplayer = "raid"..group[6][1]
+                    tremove(group[6], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 31 and i <= 35) then
+                if (#group[7] > 0) then
+                    gridplayer = "raid"..group[7][1]
+                    tremove(group[7], 1)
+                else
+                    gridplayer = ""
+                end
+            elseif (i >= 36 and i <= 40) then
+                if (#group[8] > 0) then
+                    gridplayer = "raid"..group[8][1]
+                    tremove(group[8], 1)
+                else
+                    gridplayer = ""
+                end
+             end
+        elseif (i == 1) then
+            gridplayer = "player"
+        else
+            gridplayer = "party"..(i - 1)
+        end
+
+        gridmanamax = UnitManaMax(gridplayer)
+        gridhealthmax = UnitHealthMax(gridplayer)
+
+        if (gridhealthmax > 0) then
+            gridhealthpercent = UnitHealth(gridplayer) / gridhealthmax
+            if (gridhealthpercent < 0.01) then
+                gridhealthpercent = 0.01
+            elseif (gridhealthpercent > 1) then
+                gridhealthpercent = 1
+            end
+      
+            classtext,classname = UnitClass(gridplayer)
+            classcolor = RAID_CLASS_COLORS[classname]
+            if (not classcolor) then classcolor = {r = 0, g = 0, b = 0} end
+
+            gridframe[i].namebar.texture:SetVertexColor(classcolor.r, classcolor.g, classcolor.b, 1)
+            gridframe[i].nametext:SetText(strsub(UnitName(gridplayer), 1, 24))
+
+            gridframe[i].healthbar:SetWidth(gridhealthpercent*(gridframe[i].health:GetWidth()))
+
+            if (gridhealthpercent == 1) then
+                gridframe[i].healthbar.texture:SetVertexColor(0.0, 1.0, 0.0,1); --green
+                gridframe[i].nametext:SetTextColor(0,1,0)
+            elseif (gridhealthpercent >= 0.60) then
+                gridhealthalpha = 1 - (1 - gridhealthpercent)*1.75; --darken by 1.75 percent per health percent
+                gridframe[i].healthbar.texture:SetVertexColor(0.0, 1.0, 0.0,gridhealthalpha); --green
+                gridframe[i].nametext:SetTextColor(1,1,1)
+            elseif (gridhealthpercent >= 0.20) then
+                gridhealthalpha = 1 - (0.6 - gridhealthpercent)*1.75; --darken by 1.75 percent per health percent
+                gridframe[i].healthbar.texture:SetVertexColor(1.0, 0.5, 0.0,gridhealthalpha); --orange
+                gridframe[i].nametext:SetTextColor(1,1,1)
+            elseif (gridhealthpercent > 0.01) then
+                gridframe[i].healthbar.texture:SetVertexColor(1.0, 0.0, 0.0,1); --red
+                gridframe[i].nametext:SetTextColor(1,1,1)
+            else
+                gridframe[i].healthbar.texture:SetVertexColor(1.0, 0.0, 0.0,1); --red
+                gridframe[i].nametext:SetTextColor(1,0,0)
+            end
+
+            gridframe[i].health:Show()
+            gridframe[i].name:Show()
+
+            if (gridmanamax > 0) then
+                gridmanapercent = UnitMana(gridplayer) / gridmanamax
+                if (gridmanapercent < 0.01) then
+                    gridmanapercent = 0.01
+                elseif (gridmanapercent > 1) then
+                    gridmanapercent = 1
+                end
+
+                gridmanatype = UnitPowerType(gridplayer)
+
+                gridframe[i].manabar:SetWidth(gridmanapercent*(gridframe[i].mana:GetWidth()))
+                if (gridmanatype == 1) then
+                    gridframe[i].manabar.texture:SetVertexColor(1.0, 0.0, 0.0, 1); --red rage bar
+                elseif (gridmanatype == 2) then
+                   gridframe[i].manabar.texture:SetVertexColor(1.0, 0.8, 0.0, 1); --orange focus bar
+                elseif (gridmanatype == 3) then
+                    gridframe[i].manabar.texture:SetVertexColor(1.0, 1.0, 0.0, 1); --yellow energy bar
+                else
+                    gridframe[i].manabar.texture:SetVertexColor(0.0, 0.5, 1.0, 1); --light blue mana bar
+                end
+                gridframe[i].mana:Show()
+            else
+                gridframe[i].mana:Hide()
+            end
+        else
+            gridframe[i].mana:Hide()
+            gridframe[i].health:Hide()
+            gridframe[i].name:Hide()
+        end
+        i = i + 1
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:CreateGridFrame()
+
+    local i = 1
+
+    --main grid frame
+    if (not XM_GRIDFRAME) then
+        XM_GRIDFRAME = CreateFrame("Frame", "XM Grid Frame", UIParent)
+        XM_GRIDFRAME:SetFrameStrata("LOW")
+        XM_GRIDFRAME:SetPoint("CENTER", UIParent)
+        XM_GRIDFRAME:SetHeight(partycount*cellheight + partycount*cellyspace)
+        XM_GRIDFRAME:SetWidth(groupcount*cellwidth + groupcount*cellxspace)
+        XM_GRIDFRAME:SetScale(1)
+        XM_GRIDFRAME.texture = XM_GRIDFRAME:CreateTexture()
+        XM_GRIDFRAME.texture:SetAllPoints(XM_GRIDFRAME)
+        XM_GRIDFRAME.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Smooth"))
+        XM_GRIDFRAME.texture:SetVertexColor(0,0,0,1)
+        XM_GRIDFRAME:SetAlpha(1)
+        XM_GRIDFRAME:SetScript("OnUpdate", function() XMGRID:OnUpdate(arg1) end)
+
+        --movable grid frame
+        XM_GRIDFRAME:SetMovable(true)
+        XM_GRIDFRAME:SetClampedToScreen(true)
+        XM_GRIDFRAME:EnableMouse(true)
+        XM_GRIDFRAME:RegisterForDrag("LeftButton")
+        XM_GRIDFRAME:SetScript("OnMouseDown", function() XMGRID:OnClick(arg1) end)
+        XM_GRIDFRAME:SetScript("OnMouseUp", function() XMGRID:OnDragStop(arg1) end)
+
+        XM_GRIDFRAMEP = CreateFrame("Frame", "XM Grid FrameP", UIParent)
+        XM_GRIDFRAMEP:SetFrameLevel(XM_GRIDFRAME:GetFrameLevel()+1)
+        XM_GRIDFRAMEP:SetPoint("TOPLEFT", XM_GRIDFRAME)
+        XM_GRIDFRAMEP:SetHeight(XM_GRIDFRAME:GetHeight())
+        XM_GRIDFRAMEP:SetWidth(cellwidth + cellxspace)
+
+        i = 1
+        while (i <= 4) do
+            --party marker
+            partymarker[i] = CreateFrame("Frame", "XM Grid Frame Party"..i, XM_GRIDFRAMEP)
+            partymarker[i]:SetFrameLevel(XM_GRIDFRAMEP:GetFrameLevel())
+            if (i == 1) then
+                partymarker[i]:SetPoint("TOPLEFT", XM_GRIDFRAMEP)
+                partymarker[i]:SetHeight(XM_GRIDFRAMEP:GetHeight())
+                partymarker[i]:SetWidth(cellxspace/2)
+            elseif (i == 2) then
+                partymarker[i]:SetPoint("TOPLEFT", XM_GRIDFRAMEP, cellwidth + cellxspace/2, 0)
+                partymarker[i]:SetHeight(XM_GRIDFRAMEP:GetHeight())
+                partymarker[i]:SetWidth(cellxspace/2)
+            elseif (i == 3) then
+                partymarker[i]:SetPoint("TOPLEFT", XM_GRIDFRAMEP)
+                partymarker[i]:SetHeight(cellyspace/2)
+                partymarker[i]:SetWidth(XM_GRIDFRAMEP:GetWidth())
+            elseif (i == 4) then
+                partymarker[i]:SetPoint("BOTTOMLEFT", XM_GRIDFRAMEP)
+                partymarker[i]:SetHeight(cellyspace/2)
+                partymarker[i]:SetWidth(XM_GRIDFRAMEP:GetWidth())
+            end
+            partymarker[i].texture = partymarker[i]:CreateTexture()
+            partymarker[i].texture:SetAllPoints(partymarker[i])
+            partymarker[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", "Plain"))
+            partymarker[i].texture:SetVertexColor(0.4,0.4,0.4,1)
+            i = i + 1
+        end
+
+    end
+    XM_GRIDFRAME:Show()
+    XM_GRIDFRAMEP:Show()
+
+    i = 1
+    while (i <= partycount*groupcount) do
+        local gridposx = 0
+        local gridposy = 0
+        if (i <= 5) then
+            gridposx = (0)*cellwidth + (0)*cellxspace
+            gridposy = (-1)*((i-1)*cellheight + (i-1)*cellyspace)
+        elseif (i <= 10) then
+            gridposx = (1)*cellwidth + (1)*cellxspace
+            gridposy = (-1)*((i-6)*cellheight + (i-6)*cellyspace)
+        elseif (i <= 15) then
+            gridposx = (2)*cellwidth + (2)*cellxspace
+            gridposy = (-1)*((i-11)*cellheight + (i-11)*cellyspace)
+        elseif (i <= 20) then
+            gridposx = (3)*cellwidth + (3)*cellxspace
+            gridposy = (-1)*((i-16)*cellheight + (i-16)*cellyspace)
+        elseif (i <= 25) then
+            gridposx = (4)*cellwidth + (4)*cellxspace
+            gridposy = (-1)*((i-21)*cellheight + (i-21)*cellyspace)
+        elseif (i <= 30) then
+            gridposx = (5)*cellwidth + (5)*cellxspace
+            gridposy = (-1)*((i-26)*cellheight + (i-26)*cellyspace)
+        elseif (i <= 35) then
+            gridposx = (6)*cellwidth + (6)*cellxspace
+            gridposy = (-1)*((i-31)*cellheight + (i-31)*cellyspace)
+        elseif (i <= 40) then
+            gridposx = (7)*cellwidth + (7)*cellxspace
+            gridposy = (-1)*((i-36)*cellheight + (i-36)*cellyspace)
+        end
+        gridposx = gridposx + cellxspace/2
+        gridposy = gridposy - cellyspace/2
+
+        if (not gridframe[i]) then gridframe[i] = {} end
+
+        --grid frame mana/rage/energy
+        if (not gridframe[i].mana) then
+            gridframe[i].mana = CreateFrame("Frame", "XM Grid Frame"..i.."Mana", XM_GRIDFRAME)
+            gridframe[i].mana:SetPoint("TOPLEFT", XM_GRIDFRAME, "TOPLEFT", gridposx, gridposy)
+            gridframe[i].mana:SetHeight(cellheight/6)
+            gridframe[i].mana:SetWidth(cellwidth)
+            gridframe[i].mana.texture = gridframe[i].mana:CreateTexture()
+            gridframe[i].mana.texture:SetAllPoints(gridframe[i].mana)
+            gridframe[i].mana.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Smooth"))
+            gridframe[i].mana.texture:SetVertexColor(0,0,0,1)
+        end
+
+        if (not gridframe[i].manabar) then
+            gridframe[i].manabar = CreateFrame("Frame", "XM Grid"..i.."ManaBar", gridframe[i].mana)
+            gridframe[i].manabar:SetFrameLevel((gridframe[i].mana:GetFrameLevel())+1)
+            gridframe[i].manabar:SetPoint("TOPLEFT", gridframe[i].mana)
+            gridframe[i].manabar:SetHeight(gridframe[i].mana:GetHeight())
+            gridframe[i].manabar:SetWidth(gridframe[i].mana:GetWidth())
+            gridframe[i].manabar.texture = gridframe[i].manabar:CreateTexture()
+            gridframe[i].manabar.texture:SetAllPoints(gridframe[i].manabar)
+            gridframe[i].manabar.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Smooth"))
+        end
+
+        --grid frame health
+        if (not gridframe[i].health) then
+            gridframe[i].health = CreateFrame("Frame", "XM Grid"..i.."Health", XM_GRIDFRAME)
+            gridframe[i].health:SetPoint("TOPLEFT", XM_GRIDFRAME, "TOPLEFT", gridposx, (gridposy - gridframe[i].mana:GetHeight()))
+            gridframe[i].health:SetHeight(cellheight/2)
+            gridframe[i].health:SetWidth(cellwidth)
+            gridframe[i].health.texture = gridframe[i].health:CreateTexture()
+            gridframe[i].health.texture:SetAllPoints(gridframe[i].health)
+            gridframe[i].health.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Fifths"))
+            gridframe[i].health.texture:SetVertexColor(0.2,0.2,0.2,1)
+        end
+
+        if (not gridframe[i].healthbar) then
+            gridframe[i].healthbar = CreateFrame("Frame", "XM Grid"..i.."HealthBar", gridframe[i].health)
+            gridframe[i].healthbar:SetFrameLevel((gridframe[i].health:GetFrameLevel())+1)
+            gridframe[i].healthbar:SetPoint("TOPLEFT", gridframe[i].health)
+            gridframe[i].healthbar:SetHeight(gridframe[i].health:GetHeight())
+            gridframe[i].healthbar:SetWidth(gridframe[i].health:GetWidth())
+            gridframe[i].healthbar.texture = gridframe[i].healthbar:CreateTexture()
+            gridframe[i].healthbar.texture:SetAllPoints(gridframe[i].healthbar)
+            gridframe[i].healthbar.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Smooth"))
+        end
+
+        --grid frame name
+        if (not gridframe[i].name) then
+            gridframe[i].name = CreateFrame("Frame", "XM Grid"..i.."Name", XM_GRIDFRAME)
+            gridframe[i].name:SetPoint("TOPLEFT", XM_GRIDFRAME, "TOPLEFT", gridposx, (gridposy - gridframe[i].health:GetHeight() - gridframe[i].mana:GetHeight()))
+            gridframe[i].name:SetHeight(cellheight/3)
+            gridframe[i].name:SetWidth(cellwidth)
+            gridframe[i].name.texture = gridframe[i].name:CreateTexture()
+            gridframe[i].name.texture:SetAllPoints(gridframe[i].name)
+            gridframe[i].name.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Button"))
+        end
+
+        if (not gridframe[i].namebar) then
+            gridframe[i].namebar = CreateFrame("Frame", "XM Grid"..i.."NameBar", gridframe[i].name)
+            gridframe[i].namebar:SetFrameLevel((gridframe[i].name:GetFrameLevel())+1)
+            gridframe[i].namebar:SetAllPoints(gridframe[i].name)
+            gridframe[i].namebar:SetHeight(gridframe[i].name:GetHeight())
+            gridframe[i].namebar:SetWidth(gridframe[i].name:GetWidth())
+            gridframe[i].namebar.texture = gridframe[i].namebar:CreateTexture()
+            gridframe[i].namebar.texture:SetAllPoints(gridframe[i].namebar)
+            gridframe[i].namebar.texture:SetTexture(XM_SMedia:Fetch("statusbar", "Button"))
+        end
+
+        if (not gridframe[i].nametext) then
+            gridframe[i].nametext = gridframe[i].namebar:CreateFontString("XM Grid"..i.."NameText", "OVERLAY", "GameFontNormal")
+            gridframe[i].nametext:SetPoint("CENTER", gridframe[i].namebar)
+            gridframe[i].nametext:SetFont(XM_SMedia:Fetch("font","Emblem"), 8)
+            gridframe[i].nametext:SetTextColor(1,1,1)
+            gridframe[i].nametext:SetAlpha(1)
+        end
+        gridframe[i].mana:Show()
+        gridframe[i].health:Show()
+        gridframe[i].name:Show()
+        i = i + 1
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:OnClick(inpbutton)
+
+    if (inpbutton == "LeftButton" and IsControlKeyDown()) then
+    elseif (inpbutton == "LeftButton" and IsShiftKeyDown()) then
+        gridmove = true
+        movex, movey = GetCursorPosition()
+        XM_GRIDFRAME:Show()
+        XM_GRIDFRAME:StartMoving()
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:OnDragStop()
+--save position
+
+    XMGRID:SavePosition()
+    XM_GRIDFRAME:StopMovingOrSizing()
+    gridmove = false
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMGRID:SavePosition()
+--save position
+
+    local cursorx, cursory = GetCursorPosition()
+    movex = cursorx - movex
+    movey = cursory - movey
+
+end

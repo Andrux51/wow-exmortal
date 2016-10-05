@@ -1,0 +1,582 @@
+--embedded libs
+local XM_SMedia = LibStub("LibSharedMedia-3.0")
+local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+
+--local variables
+local targetmove = false
+
+movex = 0
+movey = 0
+
+--target frame graphic tables
+local TargetBarCount = 3
+local targetframe = {}
+local XM_TARGETFRAMEBUFF = {}
+local XM_TARGETFRAMEDEBUFF ={}
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:OnInitialize()
+--called when addon loads
+
+    --initialize DB for new users
+    if (not XM_DB["XMTARGET"]) then
+        XM_DB["XMTARGET"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Target Frame: "..UnitName("player").." - "..GetRealmName():trim())
+
+        --write default values to the current profile (too bad they can't be sorted)
+        local key, value
+        for key, value in pairs(XMTARGET.DEFAULTS) do
+            XM_DB["XMTARGET"][key] = value
+        end
+    end
+
+   --initialize target frame
+   XMTARGET:CreateTargetFrame()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:OnUpdate(elapsed)
+--update screen objects
+
+    if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
+        xm_InCombat = false
+    end
+
+    local i
+    if UnitName("target") then
+        local targetmanatype = UnitPowerType("target")
+        local targetmana = UnitMana("target")
+        local targetmanamax = UnitManaMax("target")
+        if (targetmanamax == 0) then targetmanamax = 0.01 end
+        local targetmanapercent = targetmana / targetmanamax
+        if (targetmanapercent <= 0.01) then targetmanapercent = 0.01 end
+    
+        local targethealth = UnitHealth("target")
+        local targethealthmax = UnitHealthMax("target")
+        if (targethealthmax == 0) then targethealthmax = 0.01 end
+        local targethealthpercent = targethealth / targethealthmax
+        if (targethealthpercent <= 0.01) then targethealthpercent = 0.01 end
+    
+        local classtext,classname = UnitClass("target")
+        local classcolor = {r = 1.0, g = 1.0, b = 1.0}
+        if (classname) then
+            classcolor = RAID_CLASS_COLORS[classname]
+        end
+--        local targetfaction,_ = UnitFactionGroup("target")
+        local targetlevel = UnitLevel("target")
+
+        if (targethealthmax == 0) then
+            i = 1
+            while (i <= #targetframe) do
+                targetframe[i]:Hide()
+                i = i + 1
+            end
+        else
+            i = 1
+            if (targetmanamax <= 0.01) then
+                targetframe[i]:Hide()
+            else
+                targetframe[i].bar:SetWidth(targetmanapercent*(targetframe[i]:GetWidth()))
+                if (targetmanatype == 1) then
+                    targetframe[i].bar.texture:SetVertexColor(1.0, 0.0, 0.0, 1); --red rage bar
+                elseif (targetmanatype == 2) then
+                   targetframe[i].bar.texture:SetVertexColor(1.0, 0.8, 0.0, 1); --orange focus bar
+                elseif (targetmanatype == 3) then
+                    targetframe[i].bar.texture:SetVertexColor(1.0, 1.0, 0.0, 1); --yellow energy bar
+                else
+                    targetframe[i].bar.texture:SetVertexColor(0.0, 0.5, 1.0, 1); --light blue mana bar
+                end
+                targetframe[i]:Show()
+            end
+    
+            i = 2
+            if (targethealthmax == 100) then
+                targetframe[i].right:SetText("")
+            else
+                targetframe[i].right:SetText(targethealthmax)         
+            end
+            if (targethealthpercent <= 0.01) then 
+                targetframe[i].center:SetText("")
+            elseif (targethealthpercent == 1) then
+                targetframe[i].center:SetText("")
+            else
+                targetframe[i].center:SetText(("%.0f"):format(targethealthpercent*100))
+            end
+            targetframe[i].bar:SetWidth(targethealthpercent*(targetframe[i]:GetWidth()))
+            local alphahealth
+            if (targethealthpercent >= 0.60) then
+                alphahealth = 1 - (1 - targethealthpercent)*1.75; --darken by 1.75 percent per health percent
+                targetframe[i].bar.texture:SetVertexColor(0.0, 1.0, 0.0,alphahealth); --green
+            elseif (targethealthpercent >= 0.20) then
+                alphahealth = 1 - (0.6 - targethealthpercent)*1.75; --darken by 1.75 percent per health percent
+                targetframe[i].bar.texture:SetVertexColor(1.0, 0.5, 0.0,alphahealth); --orange
+            else
+                targetframe[i].bar.texture:SetVertexColor(1.0, 0.0, 0.0,1); --red
+            end
+            targetframe[i]:Show()
+    
+            i = 3
+            targetframe[i].bar.texture:SetVertexColor(classcolor.r, classcolor.g, classcolor.b, 1)
+            targetframe[i].center:SetText(strsub(UnitName("target"), 1, 24))
+            if (UnitIsPlayer("target")) then
+                targetframe[i].left:SetText(classtext)
+                targetframe[i].right:SetText(UnitRace("target"))
+            elseif (UnitPlayerControlled("target")) then
+                targetframe[i].left:SetText("Pet")
+                targetframe[i].right:SetText(UnitCreatureType("target"))
+            else
+                targetframe[i].left:SetText(UnitCreatureFamily("target"))
+                targetframe[i].right:SetText(UnitCreatureType("target"))
+            end
+            if (targetlevel < 0) then targetlevel = "X" end
+            if (UnitIsPlusMob("target") == 1) then
+                targetframe[i].leftleft:SetText(targetlevel.."+")
+            else
+                targetframe[i].leftleft:SetText(targetlevel)
+            end
+            targetframe[i]:Show()
+    
+        end
+    else
+        i = 1
+        while (i <= #targetframe) do
+            targetframe[i]:Hide()
+        i = i + 1
+        end
+    end
+
+    if (targetframe[3]:IsVisible() == 1) then
+        XMTARGET:UpdateTargetBuffs()
+        XMTARGET:UpdateTargetDebuffs()
+    else
+        local i = 1
+        while (i <= #XM_TARGETFRAMEBUFF) do
+            XM_TARGETFRAMEBUFF[i]:Hide()
+            i = i + 1
+        end
+        i = 1
+        while (i <= #XM_TARGETFRAMEDEBUFF) do
+            XM_TARGETFRAMEDEBUFF[i]:Hide()
+            i = i + 1
+        end
+    end
+
+end
+
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:UpdateTargetBuffs()
+    
+    local i,j = 1,1
+    local targetbufftable = {}
+    local targetbufforder = {}
+    local buffName,buffRank,buffIcon,buffCount,buffType,buffDuration,buffLeft
+    local targetsquare = (XM_TARGETFRAME:GetWidth() - 9*(XM_TARGETFRAME:GetWidth())*0.015)/10
+
+    --gather all target buffs
+    while (i <= 40) do
+        buffName,buffRank,buffIcon,buffCount,buffType,buffDuration,buffLeft,_,_ = UnitBuff("target", i)
+        if (buffName) then
+            targetbufftable[i] = {}
+            targetbufftable[i].buffName = buffName
+            targetbufftable[i].buffIcon = buffIcon
+            targetbufftable[i].buffCount = buffCount
+            targetbufftable[i].buffLeft = -1 * (GetTime() - buffLeft)
+            i = i + 1
+        else
+            i = 41 
+        end
+    end
+
+    --order buffs by time remaining
+    --first take out nil values or zero time
+    i = #targetbufftable
+    while (i > 0) do
+        buffLeft = targetbufftable[i].buffLeft
+        if (not buffLeft or buffLeft < 0.01) then
+            tinsert(targetbufforder, 1, targetbufftable[i])
+            tremove(targetbufftable, i)
+        end
+        i = i - 1
+    end
+
+    --sort everything else from greatest to lowest time remaining
+    table.sort(targetbufftable, function(a,b) return a.buffLeft > b.buffLeft end)
+    i = 1
+    while (i <= #targetbufftable) do
+        tinsert(targetbufforder, targetbufftable[i])
+        i = i + 1
+    end
+
+    --display buffs
+    i = 1
+    while (i <= #targetbufforder + 1) do
+        if (i == #targetbufforder + 1) then
+            j = #XM_TARGETFRAMEBUFF
+            while (j > i - 1) do
+                XM_TARGETFRAMEBUFF[j]:Hide()
+                j = j - 1
+            end
+            i = i + 1
+        else
+            if (not XM_TARGETFRAMEBUFF[i]) then
+                XM_TARGETFRAMEBUFF[i] = CreateFrame("Frame", "XM Target Buff Frame"..i, XM_TARGETFRAME)
+                if (i == 1) then
+                    XM_TARGETFRAMEBUFF[i]:SetPoint("BOTTOMLEFT", XM_TARGETFRAME, "TOPLEFT", 0, (XM_TARGETFRAME:GetHeight())/6)
+                elseif (i <= 10) then
+                    XM_TARGETFRAMEBUFF[i]:SetPoint("BOTTOMLEFT", XM_TARGETFRAMEBUFF[(i-1)], "BOTTOMRIGHT", (XM_TARGETFRAME:GetWidth())*0.015, 0)
+                else
+                    XM_TARGETFRAMEBUFF[i]:SetPoint("BOTTOMLEFT", XM_TARGETFRAMEBUFF[(i-10)], "TOPLEFT", 0, (XM_TARGETFRAME:GetHeight())/6)
+                end
+                XM_TARGETFRAMEBUFF[i]:SetHeight(targetsquare)
+                XM_TARGETFRAMEBUFF[i]:SetWidth(targetsquare)
+
+                XM_TARGETFRAMEBUFF[i].texture = XM_TARGETFRAMEBUFF[i]:CreateTexture()
+                XM_TARGETFRAMEBUFF[i].texture:SetAllPoints(XM_TARGETFRAMEBUFF[i])
+
+                XM_TARGETFRAMEBUFF[i].timer = XM_TARGETFRAMEBUFF[i]:CreateFontString("targetbuff"..i.."timer", "OVERLAY", "GameFontNormal")
+                XM_TARGETFRAMEBUFF[i].timer:SetPoint("TOP", XM_TARGETFRAMEBUFF[i], "BOTTOM")
+                XM_TARGETFRAMEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
+                XM_TARGETFRAMEBUFF[i].timer:SetTextColor(XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].r,XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].g,XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].b)
+                XM_TARGETFRAMEBUFF[i].timer:SetAlpha(XM_DB["XMTARGET"]["TARGETBUFFTIMEALPHA"])
+
+                XM_TARGETFRAMEBUFF[i].stack = XM_TARGETFRAMEBUFF[i]:CreateFontString("targetbuff"..i.."stack", "OVERLAY", "GameFontNormal")
+                XM_TARGETFRAMEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_TARGETFRAMEBUFF[i], "BOTTOMRIGHT")
+                XM_TARGETFRAMEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETBUFFSTACKFONT"]), (targetsquare/2))
+                XM_TARGETFRAMEBUFF[i].stack:SetTextColor(XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].b)
+                XM_TARGETFRAMEBUFF[i].stack:SetAlpha(XM_DB["XMTARGET"]["TARGETBUFFSTACKALPHA"])
+            end
+
+            buffIcon = targetbufforder[i].buffIcon
+            XM_TARGETFRAMEBUFF[i].texture:SetTexture(buffIcon)
+
+            buffStack = targetbufforder[i].buffCount
+            if (buffStack and buffStack > 0) then
+                XM_TARGETFRAMEBUFF[i].stack:SetText(buffStack)
+            else
+                XM_TARGETFRAMEBUFF[i].stack:SetText("")
+            end
+
+            buffLeft = targetbufforder[i].buffLeft
+            if (buffLeft and buffLeft > 0 and buffLeft <= 60) then
+                XM_TARGETFRAMEBUFF[i].timer:SetText((("%.0f"):format(buffLeft)).."")
+                if (buffLeft <= 30) then
+                    local buffAlpha = 1; --commented out: [1 - (30 - buffLeft)*0.03]
+                    XM_TARGETFRAMEBUFF[i].texture:SetVertexColor(1,1,1,buffAlpha)
+                end
+            elseif (buffLeft and buffLeft > 0) then
+                buffLeft = (buffLeft/60)
+                XM_TARGETFRAMEBUFF[i].timer:SetText((("%.0f"):format(buffLeft)).."m")
+                XM_TARGETFRAMEBUFF[i].texture:SetVertexColor(1,1,1,1)
+            else
+                XM_TARGETFRAMEBUFF[i].timer:SetText("")
+                XM_TARGETFRAMEBUFF[i].texture:SetVertexColor(1,1,1,1)
+            end
+
+            XM_TARGETFRAMEBUFF[i]:Show()
+            i = i + 1
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:UpdateTargetDebuffs()
+    
+    local i,j = 1,1
+    local targetdebufftable = {}
+    local targetdebufforder = {}
+    local debuffName,debuffRank,debuffIcon,debuffCount,debuffType,debuffDuration,debuffLeft
+    local targetsquare = (XM_TARGETFRAME:GetWidth() - 9*(XM_TARGETFRAME:GetWidth())*0.015)/10
+
+    --gather all debuffs
+    while (i <= 40) do
+        debuffName,debuffRank,debuffIcon,debuffCount,debuffType,debuffDuration,debuffLeft = UnitDebuff("target", i)
+        if (debuffName) then
+            targetdebufftable[i] = {}
+            targetdebufftable[i].debuffName = debuffName
+            targetdebufftable[i].debuffIcon = debuffIcon
+            targetdebufftable[i].debuffCount = debuffCount
+            targetdebufftable[i].debuffLeft = -1 * (GetTime() - debuffLeft)
+            i = i + 1
+        else
+            i = 41 
+        end
+    end
+
+    --order debuffs by time remaining
+    --first take out nil values or zero time
+    i = #targetdebufftable
+    while (i > 0) do
+        debuffLeft = targetdebufftable[i].debuffLeft
+        if (not debuffLeft or debuffLeft < 0.01) then
+            tinsert(targetdebufforder, 1, targetdebufftable[i])
+            tremove(targetdebufftable, i)
+        end
+        i = i - 1
+    end
+
+    --sort everything else from greatest to lowest time remaining
+    table.sort(targetdebufftable, function(a,b) return a.debuffLeft > b.debuffLeft end)
+
+    i = 1
+    while (i <= #targetdebufftable) do
+        tinsert(targetdebufforder, targetdebufftable[i])
+        i = i + 1
+    end
+
+    --display debuffs
+    i = 1
+    while (i <= #targetdebufforder + 1) do
+        if (i == #targetdebufforder + 1) then
+            j = #XM_TARGETFRAMEDEBUFF
+            while (j > i - 1) do
+                XM_TARGETFRAMEDEBUFF[j]:Hide()
+                j = j - 1
+            end
+            i = i + 1
+        else
+            if (not XM_TARGETFRAMEDEBUFF[i]) then
+                XM_TARGETFRAMEDEBUFF[i] = CreateFrame("Frame", "XM Target Debuff Frame"..i, XM_TARGETFRAME)
+                if (i == 1) then
+                    XM_TARGETFRAMEDEBUFF[i]:SetPoint("TOPLEFT", XM_TARGETFRAME, "BOTTOMLEFT", 0, ((-1)*(XM_TARGETFRAME:GetHeight())/6)-10)
+                elseif (i <= 10) then
+                    XM_TARGETFRAMEDEBUFF[i]:SetPoint("TOPLEFT", XM_TARGETFRAMEDEBUFF[(i-1)], "TOPRIGHT", (XM_TARGETFRAME:GetWidth())*0.015, 0)
+                else
+                    XM_TARGETFRAMEDEBUFF[i]:SetPoint("TOPLEFT", XM_TARGETFRAMEDEBUFF[(i-10)], "BOTTOMLEFT", 0, ((-1)*(XM_TARGETFRAME:GetHeight())/6)-10)
+                end
+                XM_TARGETFRAMEDEBUFF[i]:SetHeight(targetsquare)
+                XM_TARGETFRAMEDEBUFF[i]:SetWidth(targetsquare)
+
+                XM_TARGETFRAMEDEBUFF[i].texture = XM_TARGETFRAMEDEBUFF[i]:CreateTexture()
+                XM_TARGETFRAMEDEBUFF[i].texture:SetAllPoints(XM_TARGETFRAMEDEBUFF[i])
+
+                XM_TARGETFRAMEDEBUFF[i].timer = XM_TARGETFRAMEDEBUFF[i]:CreateFontString("playerdebuff"..i.."timer", "OVERLAY", "GameFontNormal")
+                XM_TARGETFRAMEDEBUFF[i].timer:SetPoint("TOP", XM_TARGETFRAMEDEBUFF[i], "BOTTOM")
+                XM_TARGETFRAMEDEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETDEBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
+                XM_TARGETFRAMEDEBUFF[i].timer:SetTextColor(XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].r,XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].g,XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].b)
+                XM_TARGETFRAMEDEBUFF[i].timer:SetAlpha(XM_DB["XMTARGET"]["TARGETDEBUFFTIMEALPHA"])
+
+                XM_TARGETFRAMEDEBUFF[i].stack = XM_TARGETFRAMEDEBUFF[i]:CreateFontString("targetdebuff"..i.."stack", "OVERLAY", "GameFontNormal")
+                XM_TARGETFRAMEDEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_TARGETFRAMEDEBUFF[i], "BOTTOMRIGHT")
+                XM_TARGETFRAMEDEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETDEBUFFSTACKFONT"]), (targetsquare/2))
+                XM_TARGETFRAMEDEBUFF[i].stack:SetTextColor(XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].b)
+                XM_TARGETFRAMEDEBUFF[i].stack:SetAlpha(XM_DB["XMTARGET"]["TARGETDEBUFFSTACKALPHA"])
+            end
+
+            debuffIcon = targetdebufforder[i].debuffIcon
+            XM_TARGETFRAMEDEBUFF[i].texture:SetTexture(debuffIcon)
+
+            debuffLeft = targetdebufforder[i].debuffLeft
+            if (debuffLeft and debuffLeft > 0 and debuffLeft <= 60) then
+                XM_TARGETFRAMEDEBUFF[i].timer:SetText((("%.0f"):format(debuffLeft)).."")
+            elseif (debuffLeft and debuffLeft > 0) then
+                debuffLeft = (debuffLeft/60)
+                XM_TARGETFRAMEDEBUFF[i].timer:SetText((("%.0f"):format(debuffLeft)).."m")
+            else
+                XM_TARGETFRAMEDEBUFF[i].timer:SetText("")
+            end
+
+            debuffStack = targetdebufforder[i].debuffCount
+            if (debuffStack and debuffStack > 0) then
+                XM_TARGETFRAMEDEBUFF[i].stack:SetText(debuffStack)
+            else
+                XM_TARGETFRAMEDEBUFF[i].stack:SetText("")
+            end
+
+            XM_TARGETFRAMEDEBUFF[i]:Show()
+            i = i + 1
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:CreateTargetFrame()
+
+    --main target frame
+    if (not XM_TARGETFRAME) then
+        XM_TARGETFRAME = CreateFrame("Frame", "XM Target Frame", UIParent)
+        XM_TARGETFRAME:SetFrameStrata(XM_DB["XMTARGET"]["TARGETSTRATA"])
+        XM_TARGETFRAME:SetPoint("TOP", UIParent, "CENTER", XM_DB["XMTARGET"]["TARGETBOTTOMX"], XM_DB["XMTARGET"]["TARGETBOTTOMY"])
+        XM_TARGETFRAME:SetHeight((XM_DB["XMTARGET"]["TARGETHEIGHT"])*3)
+        XM_TARGETFRAME:SetWidth(XM_DB["XMTARGET"]["TARGETWIDTH"])
+        XM_TARGETFRAME:SetScale(XM_DB["XMTARGET"]["TARGETSCALE"])
+        XM_TARGETFRAME:SetAlpha(XM_DB["XMTARGET"]["TARGETALPHA"])
+        XM_TARGETFRAME:SetScript("OnUpdate", function() XMTARGET:OnUpdate(arg1) end)
+
+        --movable target frame
+        XM_TARGETFRAME:SetMovable(true)
+        XM_TARGETFRAME:SetClampedToScreen(true)
+        XM_TARGETFRAME:EnableMouse(true)
+        XM_TARGETFRAME:RegisterForDrag("LeftButton")
+        XM_TARGETFRAME:SetScript("OnMouseDown", function() XMTARGET:OnClick(arg1) end)
+        XM_TARGETFRAME:SetScript("OnMouseUp", function() XMTARGET:OnDragStop(arg1) end)
+    end
+
+    local i = 1
+    while (i <= TargetBarCount) do
+        if (not targetframe[i]) then
+            targetframe[i] = CreateFrame("Frame", "XM Target Frame"..i, XM_TARGETFRAME)
+            if (i == 1) then
+                targetframe[i]:SetPoint("TOPLEFT", XM_TARGETFRAME)
+                targetframe[i]:SetPoint("TOPRIGHT", XM_TARGETFRAME)
+            elseif (i == 2) then
+                targetframe[i]:SetPoint("LEFT", XM_TARGETFRAME)
+                targetframe[i]:SetPoint("RIGHT", XM_TARGETFRAME)
+
+            elseif (i == 3) then
+                targetframe[i]:SetPoint("BOTTOMLEFT", XM_TARGETFRAME)
+                targetframe[i]:SetPoint("BOTTOMRIGHT", XM_TARGETFRAME)
+            end
+            targetframe[i]:SetHeight((XM_TARGETFRAME:GetHeight())/TargetBarCount)
+            targetframe[i]:SetWidth(XM_TARGETFRAME:GetWidth())
+            targetframe[i].texture = targetframe[i]:CreateTexture()
+            targetframe[i].texture:SetAllPoints(targetframe[i])
+            if (i == 1) then
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETMANABACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETMANABACKALPHA"])
+            elseif (i == 2) then
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETHEALTHBACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETHEALTHBACKALPHA"])
+            elseif (i == 3) then
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETNAMEBACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETMANABACKALPHA"])
+            end
+
+            targetframe[i].bar = CreateFrame("Frame", "targetframe"..i.."bar", targetframe[i])
+            targetframe[i].bar:SetFrameLevel((targetframe[i]:GetFrameLevel())+1)
+            if (i == 1 or i == 2) then
+                targetframe[i].bar:SetPoint("LEFT", targetframe[i])
+            elseif (i == 3) then
+                targetframe[i].bar:SetAllPoints(targetframe[i])
+            end
+            targetframe[i].bar:SetHeight(targetframe[i]:GetHeight())
+            targetframe[i].bar:SetWidth(targetframe[i]:GetWidth())
+            targetframe[i].bar.texture = targetframe[i].bar:CreateTexture()
+            targetframe[i].bar.texture:SetAllPoints(targetframe[i].bar)
+            if (i == 1) then
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETMANATEXTURE"]))
+            elseif (i == 2) then
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETHEALTHTEXTURE"]))
+            elseif (i == 3) then
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETNAMETEXTURE"]))
+            end
+
+            targetframe[i].text = CreateFrame("Frame", "targetframe"..i.."text", targetframe[i])
+            targetframe[i].text:SetFrameLevel((targetframe[i]:GetFrameLevel())+2)
+            targetframe[i].text:SetAllPoints(targetframe[i])
+            targetframe[i].text:SetHeight(targetframe[i]:GetHeight())
+            targetframe[i].text:SetWidth(targetframe[i]:GetWidth())
+
+            targetframe[i].right = targetframe[i].text:CreateFontString("targetframe"..i.."right", "OVERLAY", "GameFontNormal")
+            if (i == 1 or i == 2) then
+                targetframe[i].right:SetPoint("RIGHT", targetframe[i].text)
+            elseif (i == 3) then
+                targetframe[i].right:SetPoint("TOPRIGHT", targetframe[i].text, "BOTTOMRIGHT")
+            end
+            if (i == 1) then
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANAMAXFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].b)
+                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETMANAMAXALPHA"])
+            elseif (i == 2) then
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHMAXFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].b)
+                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHMAXALPHA"])
+            elseif (i == 3) then
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMETYPEFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].b)
+                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMETYPEALPHA"])
+            end
+
+            targetframe[i].left = targetframe[i].text:CreateFontString("targetframe"..i.."left", "OVERLAY", "GameFontNormal")
+            if (i == 1 or i == 2) then
+                targetframe[i].left:SetPoint("LEFT", targetframe[i].text)
+            elseif (i == 3) then
+                targetframe[i].left:SetPoint("TOPLEFT", targetframe[i].text, "BOTTOMLEFT")
+            end
+            if (i == 1) then
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANALEFTFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETMANALEFTALPHA"])
+            elseif (i == 2) then
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHLEFTFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHLEFTALPHA"])
+            elseif (i == 3) then
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMECLASSFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMECLASSALPHA"])
+            end
+
+            targetframe[i].center = targetframe[i].text:CreateFontString("targetframe"..i.."center", "OVERLAY", "GameFontNormal")
+            targetframe[i].center:SetPoint("CENTER", targetframe[i].text)
+            if (i == 1) then
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANAPERCFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].b)
+                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETMANAPERCALPHA"])
+            elseif (i == 2) then
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHPERCFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].b)
+                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHPERCALPHA"])
+            elseif (i == 3) then
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMENAMEFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].b)
+                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMENAMEALPHA"])
+            end
+
+            if (i == 3) then
+                targetframe[i].leftleft = targetframe[i].text:CreateFontString("targetframe"..i.."leftleft", "OVERLAY", "GameFontNormal")
+                targetframe[i].leftleft:SetPoint("TOPRIGHT", targetframe[i].text, "BOTTOMLEFT")
+                targetframe[i].leftleft:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMELEVELFONT"]), 10)
+                targetframe[i].leftleft:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].b)
+                targetframe[i].leftleft:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMELEVELALPHA"])
+            end
+        end
+        i = i + 1
+    end
+
+    XM_TARGETFRAME:Show()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:OnClick(inpbutton)
+
+    if (inpbutton == "LeftButton" and IsControlKeyDown()) then
+    elseif (inpbutton == "LeftButton" and IsShiftKeyDown()) then
+        targetmove = true
+        XM_TARGETFRAME:Show()
+        local i = 1
+        while (i <= #targetframe) do
+            targetframe[i]:Show()
+            i = i + 1
+        end
+        XM_TARGETFRAME:StartMoving()
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:OnDragStop()
+--save position
+
+    XMTARGET:SavePosition()
+    XM_TARGETFRAME:StopMovingOrSizing()
+    targetmove = false
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMTARGET:SavePosition()
+--save position
+
+    local cursorx, cursory = GetCursorPosition()
+    movex = cursorx - movex
+    movey = cursory - movey
+
+    XM_DB["XMTARGET"]["TARGETBOTTOMX"] = XM_DB["XMTARGET"]["TARGETBOTTOMX"] + movex
+    XM_DB["XMTARGET"]["TARGETBOTTOMY"] = XM_DB["XMTARGET"]["TARGETBOTTOMY"] + movey
+
+end

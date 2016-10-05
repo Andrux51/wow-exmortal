@@ -1,0 +1,16 @@
+XMPLAYER.OPTIONS = {
+    name = "eXMortal Player",
+    desc = "eXMortal Player",
+    type = "group",
+    order = 100,
+    args = {}
+}
+
+XMPLAYER.OPTIONS.args.LOCK = {
+    name = "Lock",
+    desc = "Lock XM Player Frame",
+    type = "toggle",
+    order = 102,
+    get = function() return XM_DB["XMPLAYER"]["LOCK"] end,
+    set = function(v) XM_DB["XMPLAYER"]["LOCK"] = v end,
+}

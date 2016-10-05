@@ -1,0 +1,429 @@
+--embedded Libs
+local XM_SMedia = LibStub("LibSharedMedia-3.0")
+local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+
+--local variables
+
+--tables for consumable items
+local itemtable = {}
+itemtable[1] = {
+    --items that share health stone cooldown (sort by hp)
+    --priority, itemID, texture, amount
+    [1] = {ID = 36894, TXT = "INV_Stone_04", AMT = 5136}, -- Fel Healthstone 5136
+    [2] = {ID = 36893, TXT = "INV_Stone_04", AMT = 4708}, -- Fel Healthstone 4708
+    [3] = {ID = 36892, TXT = "INV_Stone_04", AMT = 4280}, -- Fel Healthstone 4280
+    [4] = {ID = 22105, TXT = "INV_Stone_04", AMT = 2496},  --Healthstone 2496
+    [5] = {ID = 22104, TXT = "INV_Stone_04", AMT = 2288},  --Healthstone 2288
+    [6] = {ID = 22103, TXT = "INV_Stone_04", AMT = 2080},  --Healthstone 2080
+    [7] = {ID = 22797, TXT = "INV_Misc_Herb_Nightmareseed", AMT = 2000},  --Nightmare Seed
+}
+itemtable[2] = {
+    --items that share mana stone cooldown (sort by mp)
+    --priority, itemID, texture, amount
+    [1] = {ID = 33312, TXT =  "INV_MISC_GEM_Sapphire_02", AMT = 3330}, --Mana Sapphire
+    [2] = {ID = 22044, TXT = "INV_Misc_Gem_Stone_01", AMT = 2460},  --Mana Emerald
+    [3] = {ID = 35287, TXT = "INV_Misc_Fish_10.", AMT = 585},  --Luminous Bluetail
+    [4] = {ID = 31451, TXT = "INV_Potion_107", AMT = 300}, --Pure Energy
+}
+itemtable[3] = {
+    --items that share health potion cooldown (sort by hp)
+    --priority, itemID, texture, amount
+    [1] = {ID = 41166, TXT = "INV_Potion_167", AMT = 2700},  --Runic Healing Injector
+    [2] = {ID = 33447, TXT = "INV_Alchemy_Elixir_05", AMT = 2700}, --Runic Healing Potion
+    [3] = {ID = 40087, TXT = "INV_Alchemy_Elixir_06", AMT = 2475},  --Powerful Rejuvenation Potion
+    [4] = {ID = 22850, TXT = "INV_Potion_134", AMT = 2100}, --Super Rejuvenation Potion
+    [5] = {ID = 32905, TXT = "INV_Potion_153", AMT = 1500},  --Bottled Nethergon Vapor
+    [6] = {ID = 32904, TXT = "INV_Potion_167", AMT = 1500},  --Cenarion Healing Salve
+    [7] = {ID = 32947, TXT = "INV_Potion_131", AMT = 1500},  --Auchenai Healing Potion
+    [8] = {ID = 22829, TXT = "INV_Potion_131", AMT = 1500},  --Super Healing Potion
+    [9] = {ID = 33092, TXT = "INV_Potion_167", AMT = 1500},  --Healing Potion Injector
+    [10] = {ID = 23822, TXT = "INV_Potion_167", AMT = 1500},  --Healing Potion Injector
+    [11] = {ID = 39327, TXT = "INV_Alchemy_Enchantedvial", AMT = 1500},  --Noth's Special Brew
+    [12] = {ID = 43531, TXT = "INV_Potion_131", AMT = 1500},  --Argent Healing Potion
+    [13] = {ID = 33934, TXT = "INV_Potion_160", AMT = 1500},  --Crystal Healing Potion
+    [14] = {ID = 39671, TXT = "INV_Potion_120", AMT = 1500},  --Resurgent Healing Potion
+    [15] = {ID = 9144, TXT = "INV_Potion_34", AMT = 1500},  --Wildvine Potion
+    [16] = {ID = 18253, TXT = "INV_Potion_47", AMT = 1440},  --Major Rejuvenation Potion
+    [17] = {ID = 32784, TXT = "INV_Potion_52", AMT = 1050},  --Red Ogre Brew (Blade's Edge)
+    [18] = {ID = 32910, TXT = "INV_Potion_52", AMT = 1050},  --Red Ogre Brew Special (Blade's Edge)
+    [19] = {ID = 31838, TXT = "INV_Potion_40", AMT = 1050},  --Major Combat Healing Potion
+    [20] = {ID = 31839, TXT = "INV_Potion_40", AMT = 1050},  --Major Combat Healing Potion
+    [21] = {ID = 31852, TXT = "INV_Potion_40", AMT = 1050},  --Major Combat Healing Potion
+    [22] = {ID = 31853, TXT = "INV_Potion_40", AMT = 1050},  --Major Combat Healing Potion
+    [23] = {ID = 28100, TXT = "INV_Potion_40", AMT = 1050},  --Volatile Healing Potion
+    [24] = {ID = 13446, TXT = "INV_Potion_54", AMT = 1050},  --Major Healing Potion
+    [25] = {ID = 17348, TXT = "INV_Potion_38", AMT = 980},  --Major Healing Draught
+    [26] = {ID = 2456, TXT = "INV_Potion_02", AMT = 900},  --Minor Rejuvenation Potion
+    [27] = {ID = 3928, TXT = "INV_Potion_53", AMT = 700},  --Superior Healing Potion
+    [28] = {ID = 18839, TXT = "INV_Potion_39", AMT = 700},  --Combat Healing Potion
+    [29] = {ID = 17349, TXT = "INV_Potion_39", AMT = 560},  --Superior Healing Draught (Battlegrounds)
+    [30] = {ID = 1710, TXT = "INV_Potion_52", AMT = 455},  --Greater Healing Potion
+    [31] = {ID = 929, TXT = "INV_Potion_51", AMT = 280},  --Healing Potion
+    [32] = {ID = 4596, TXT = "INV_Potion_35", AMT = 140},  --Discolored Healing Potion
+    [33] = {ID = 858, TXT = "INV_Potion_50", AMT = 140},  --Lesser Healing Potion
+    [34] = {ID = 118, TXT = "INV_Potion_49", AMT = 70},  --Minor Healing Potion
+    [35] = {ID = 40081, TXT = "INV_Alchemy_Elixir_03", AMT = 5400},  --Potion of Nightmares
+    [36] = {ID = 22836, TXT = "INV_Potion_108", AMT = 3600},  --Major Dreamless Sleep Potion
+    [37] = {ID = 31676, TXT = "INV_Potion_140", AMT = 3200},  --Fel Regeneration Potion
+    [38] = {ID = 20002, TXT = "INV_Potion_83", AMT = 2100},  --Greater Dreamless Sleep Potion
+    [39] = {ID = 43569, TXT = "INV_Alchemy_Endlessflask_06", AMT = 1680},  --Endless Healing Potion
+    [40] = {ID = 34440, TXT = "INV_Potion_28", AMT = 1650},  --Mad Alchemist's Potion
+    [41] = {ID = 12190, TXT = "INV_Potion_83", AMT = 1200},  --Dreamless Sleep Potion
+}
+itemtable[4] = {
+    --items that share mana potion cooldown (sort by mp)
+    --priority, itemID, texture, amount
+    [1] = {ID = 33448, TXT = "INV_Alchemy_Elixir_02", AMT = 4200},  --Runic Mana Potion
+    [2] = {ID = 42545, TXT = "INV_Potion_168", AMT = 4200},  --Runic Mana Injector
+    [3] = {ID = 31677, TXT = "INV_Potion_138", AMT = 3200},  --Fel Mana Potion
+    [4] = {ID = 33935, TXT = "INV_Potion_163", AMT = 3000},  --Crystal Mana Potion
+    [5] = {ID = 40087, TXT = "INV_Alchemy_Elixir_06", AMT = 2475},  --Powerful Rejuvenation Potion
+    [6] = {ID = 13444, TXT = "INV_Potion_76", AMT = 2250},  --Diet McWeaksauce
+    [7] = {ID = 22850, TXT = "INV_Potion_134", AMT = 2100},  --Super Rejuvenation Potion
+    [8] = {ID = 32902, TXT = "INV_Potion_156", AMT = 1800},  --Bottled Nethergon Energy (Tempest Keep)
+    [9] = {ID = 32903, TXT = "INV_Potion_168", AMT = 1800},  --Cenarion Mana Salve (Coilfang Reservoir)
+    [10] = {ID = 32783, TXT = "INV_Potion_73", AMT = 1800},  --Blue Ogre Brew (Blade's Edge)
+    [11] = {ID = 32909, TXT = "INV_Potion_73", AMT = 1800},  --Blue Ogre Brew Special (Blade's Edge)
+    [12] = {ID = 32948, TXT = "INV_Potion_137", AMT = 1800},  --Auchenai Mana Potion
+    [13] = {ID = 43530, TXT = "INV_Potion_137", AMT = 1800},  --Argent Mana Potion
+    [14] = {ID = 22832, TXT = "INV_Potion_137", AMT = 1800},  --Super Mana Potion
+    [15] = {ID = 33093, TXT = "INV_Potion_168", AMT = 1800},  --Mana Potion Injector
+    [16] = {ID = 23823, TXT = "INV_Potion_168", AMT = 1800},  --Mana Potion Injector
+    [17] = {ID = 40067, TXT = "INV_Potion_126", AMT = 1800},  --Icy Mana Potion
+    [18] = {ID = 33935, TXT = "INV_Potion_163", AMT = 1800},  --Crystal Mana Potion
+    [19] = {ID = 9144, TXT = "INV_Potion_34", AMT = 1500},  --Wildvine Potion
+    [20] = {ID = 18253, TXT = "INV_Potion_145", AMT = 1440},  --Major Rejuvenation Potion
+    [21] = {ID = 31840, TXT = "INV_Potion_82", AMT = 1350},  --Major Combat Mana Potion
+    [22] = {ID = 31841, TXT = "INV_Potion_82", AMT = 1350},  --Major Combat Mana Potion
+    [23] = {ID = 31854, TXT = "INV_Potion_82", AMT = 1350},  --Major Combat Mana Potion
+    [24] = {ID = 31855, TXT = "INV_Potion_82", AMT = 1350},  --Major Combat Mana Potion
+    [25] = {ID = 28101, TXT = "INV_Potion_75", AMT = 1350},  --Unstable Mana Potion
+    [26] = {ID = 13444, TXT = "INV_Potion_76", AMT = 1350},  --Major Mana Potion
+    [27] = {ID = 17351, TXT = "INV_Potion_80", AMT = 980},  --Major Mana Draught (Battlegrounds)
+    [28] = {ID = 13443, TXT = "INV_Potion_74", AMT = 900},  --Superior Mana Potion
+    [29] = {ID = 18841, TXT = "INV_Potion_81", AMT = 900},  --Combat Mana Potion
+    [30] = {ID = 6149, TXT = "INV_Potion_73", AMT = 700},  --Greater Mana Potion
+    [31] = {ID = 17352, TXT = "INV_Potion_81", AMT = 560},  --Superior Mana Draught
+    [32] = {ID = 3827, TXT = "INV_Potion_72", AMT = 455},  --Mana Potion
+    [33] = {ID = 43570, TXT = "INV_Alchemy_Endlessflask_04", AMT = 400},  --Endless Mana Potion
+    [34] = {ID = 3385, TXT = "INV_Potion_71", AMT = 280},  --Lesser Mana Potion
+    [35] = {ID = 3087, TXT = "INV_Drink_05", AMT = 140},  --Mug of Shimmer Stout
+    [36] = {ID = 2455, TXT = "INV_Potion_70", AMT = 140},  --Minor Mana Potion
+    [37] = {ID = 2456, TXT = "INV_Potion_02", AMT = 90},  --Minor Rejuvenation Potion
+    [38] = {ID = 40081, TXT = "INV_Alchemy_Elixir_03", AMT = 5400},  --Potion of Nightmares
+    [39] = {ID = 22836, TXT = "INV_Potion_108", AMT = 3600},  --Major Dreamless Sleep Potion
+    [40] = {ID = 20002, TXT = "INV_Potion_83", AMT = 2100},  --Greater Dreamless Sleep Potion
+    [41] = {ID = 34440, TXT = "INV_Potion_28", AMT = 1650},  --Mad Alchemist's Potion
+    [42] = {ID = 12190, TXT = "INV_Potion_83", AMT = 1200},  --Dreamless Sleep Potion
+}
+
+--graphical frame arrays
+local ButtonType = #itemtable
+local ButtonCount = {}
+local ItemButton = {}
+
+local HealthButtonKey
+local ManaButtonKey
+local HSButtonKey
+local HPotButtonKey
+local MSButtonKey
+local MPotButtonKey
+
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMPOTION:OnInitialize()
+--called when addon loads
+
+    --initialize DB for new users
+    if (not XM_DB["XMPOTION"]) then
+        XM_DB["XMPOTION"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Potion Frame: "..UnitName("player").." - "..GetRealmName():trim())
+
+        --write default values to the current profile (too bad they can't be sorted)
+        local key, value
+        for key, value in pairs(XMPOTION.DEFAULTS) do
+            XM_DB["XMPOTION"][key] = value
+        end
+    end
+
+    HealthButtonKey = XM_DB["XMPOTION"]["HEALTHBUTTONKEY"]
+    ManaButtonKey = XM_DB["XMPOTION"]["MANABUTTONKEY"]
+    HSButtonKey = XM_DB["XMPOTION"]["HSBUTTONKEY"]
+    HPotButtonKey = XM_DB["XMPOTION"]["HPOTBUTTONKEY"]
+    MSButtonKey = XM_DB["XMPOTION"]["MSBUTTONKEY"]
+    MPotButtonKey = XM_DB["XMPOTION"]["MPOTBUTTONKEY"]
+
+    local h = 1
+    while (h <= ButtonType) do
+        ItemButton[h] = {}
+        h = h + 1
+    end
+
+    --initialize potion frame
+    XMPOTION:CreateSecurePotionFrame()
+
+    --register events
+    XMPOTION:RegisterEvent("PLAYER_REGEN_ENABLED")
+    XMPOTION:RegisterEvent("UNIT_INVENTORY_CHANGED")
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMPOTION:OnUpdate(elapsed)
+--update screen objects
+
+    if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
+        xm_InCombat = false
+    end
+
+    if (XMPLAYER) then
+
+    local h,i = 1,1
+    local starttime,cooldown
+    local itemcount = 0
+
+    h = 1
+    while (h <= ButtonType) do
+        i = 1
+        itemcount = 0
+
+        while (i <= #ItemButton[h]) do
+            if (i > ButtonCount[h] or XMPLAYER.VISIBLE == false) then
+                ItemButton[h][i].texture:SetVertexColor(0,0,0,0)
+                ItemButton[h][i].count:SetText("")
+                ItemButton[h][i].cd:SetText("")
+                ItemButton[h][i].key:SetText("")
+            else
+                itemcount = GetItemCount("item:"..itemtable[h][ItemButton[h][i].ID].ID)
+                if (itemcount and itemcount > 0) then
+                    ItemButton[h][i].count:SetText(itemcount)
+        
+                    starttime,cooldown,_ = GetItemCooldown("item:"..itemtable[h][ItemButton[h][i].ID].ID)
+                    if (starttime > 0) then
+                        ItemButton[h][i].texture:SetVertexColor(0.3,0.3,0.3,1)
+                        ItemButton[h][i].cd:SetText(("%.0f"):format(cooldown - (GetTime() - starttime)))
+                    elseif (h == 1 or h == 3) and (UnitHealthMax("player") - UnitHealth("player") >= itemtable[h][ItemButton[h][i].ID].AMT) then
+                        ItemButton[h][i].texture:SetVertexColor(1,1,1,1)
+                        ItemButton[h][i].cd:SetText("")
+                    elseif (h == 2 or h == 4) and (UnitPowerType("player") < 1) and (UnitManaMax("player") - UnitMana("player") >= itemtable[h][ItemButton[h][i].ID].AMT) then
+                        ItemButton[h][i].texture:SetVertexColor(1,1,1,1)
+                        ItemButton[h][i].cd:SetText("")
+                    else
+                        ItemButton[h][i].texture:SetVertexColor(0.3,0.3,0.3,1)
+                        ItemButton[h][i].cd:SetText("")
+                    end
+
+                    if (h == 1) and (ButtonCount[h] >= 1) and (HealthButtonKey and HealthButtonKey ~= "") then
+                        ItemButton[h][1].key:SetText(HealthButtonKey)
+                    elseif (h == 3) and (ButtonCount[h-2] < 1) and (ButtonCount[h] >= 1) and (HealthButtonKey and HealthButtonKey ~= "") then
+                        ItemButton[h][1].key:SetText(HealthButtonKey)
+                    elseif (h == 3) and (ButtonCount[h-2] >= 1) and (ButtonCount[h] >= 1) then
+                        if (HSButtonKey and HSButtonKey ~= "") then
+                            ItemButton[h-2][1].key:SetText(HSButtonKey)
+                        end
+                        if (HPotButtonKey and HPotButtonKey ~= "") then
+                            ItemButton[h-2][1].key:SetText(HPotButtonKey)
+                        end
+                    elseif (h == 2) and (ButtonCount[h] >= 1) and (ManaButtonKey and ManaButtonKey ~= "") then
+                        ItemButton[h][1].key:SetText(ManaButtonKey)
+                    elseif (h == 4) and (ButtonCount[h-2] < 1) and (ButtonCount[h] >= 1) and (ManaButtonKey and ManaButtonKey ~= "") then
+                        ItemButton[h][1].key:SetText(ManaButtonKey)
+                    elseif (h == 4) and (ButtonCount[h-2] >= 1) and (ButtonCount[h] >= 1) then
+                        if (MSButtonKey and MSButtonKey ~= "") then
+                            ItemButton[h][1].key:SetText(MSButtonKey)
+                        end
+                        if (MPotButtonKey and MPotButtonKey ~= "") then
+                            ItemButton[h][1].key:SetText(MPotButtonKey)
+                        end
+                    else
+                        ItemButton[h][1].key:SetText("")
+                    end
+
+                else
+                    ItemButton[h][i].texture:SetVertexColor(0.3,0.3,0.3,1)
+                    ItemButton[h][i].count:SetText("")
+                    ItemButton[h][i].cd:SetText("")
+                    ItemButton[h][i].key:SetText("")
+                end
+            end
+            i = i + 1
+        end
+        h = h + 1
+    end
+
+    end
+
+end
+
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMPOTION:CreateSecurePotionFrame()
+
+    if (XMPLAYER) and (xm_InCombat == false) then
+
+    --main potion frame
+    if (not XM_POTIONFRAME) then
+        XM_POTIONFRAME = CreateFrame("Frame", "XM Potion Frame", UIParent)
+        XM_POTIONFRAME:SetAllPoints(UIParent)
+    end
+    XM_POTIONFRAME:SetFrameStrata(XM_DB["XMPLAYER"]["PLAYERSTRATA"])
+    XM_POTIONFRAME:SetScript("OnUpdate", function() XMPOTION:OnUpdate(arg1) end)
+
+    local h,i,j
+    local calcx,calcy = 0,0
+    local ButtonSquare = 25
+    local itemcount
+
+    h = 1
+    while (h <= ButtonType) do
+
+        i,j = 1,1
+        ButtonCount[h] = 0
+        itemcount = 0
+
+        while (i <= #itemtable[h] + 1) do
+            if (i == #itemtable[h] + 1) then
+                j = #ItemButton[h]
+                while (j > ButtonCount[h]) do
+                    if (ItemButton[h][j]) then
+                        ItemButton[h][j].texture:SetVertexColor(0,0,0,0)
+                    end
+                    j = j - 1
+                end
+                i = i + 1
+            else
+                itemcount = GetItemCount("item:"..itemtable[h][i].ID)
+                if (itemcount and itemcount > 0) then
+                    ButtonCount[h] = ButtonCount[h] + 1
+                    if (not ItemButton[h][ButtonCount[h]]) then
+                        ItemButton[h][ButtonCount[h]] = CreateFrame("Button", "ItemButton"..h.."-"..ButtonCount[h], XM_POTIONFRAME, "SecureActionButtonTemplate")
+                        ItemButton[h][ButtonCount[h]]:SetFrameStrata(XM_DB["XMPLAYER"]["PLAYERSTRATA"])
+
+                        ItemButton[h][ButtonCount[h]]:SetHeight(ButtonSquare)
+                        ItemButton[h][ButtonCount[h]]:SetWidth(ButtonSquare)
+
+                        ItemButton[h][ButtonCount[h]].texture = ItemButton[h][ButtonCount[h]]:CreateTexture()
+                        ItemButton[h][ButtonCount[h]].texture:SetAllPoints(ItemButton[h][ButtonCount[h]])
+
+                        ItemButton[h][ButtonCount[h]].text = CreateFrame("Frame", "ItemButton"..h.."-"..ButtonCount[h].."text", ItemButton[h][ButtonCount[h]])
+                        ItemButton[h][ButtonCount[h]].text:SetFrameLevel((ItemButton[h][ButtonCount[h]]:GetFrameLevel())+1)
+                        ItemButton[h][ButtonCount[h]].text:SetAllPoints(ItemButton[h][ButtonCount[h]])
+
+                        ItemButton[h][ButtonCount[h]].cd = ItemButton[h][ButtonCount[h]].text:CreateFontString("ItemButton"..h.."-"..ButtonCount[h].."cd", "OVERLAY", "GameFontNormal")
+                        ItemButton[h][ButtonCount[h]].cd:SetPoint("CENTER", ItemButton[h][ButtonCount[h]].text)
+                        ItemButton[h][ButtonCount[h]].cd:SetFont(XM_SMedia:Fetch("font","Emblem"), (ItemButton[h][ButtonCount[h]]:GetHeight()*0.4), "OUTLINE")
+                        ItemButton[h][ButtonCount[h]].cd:SetTextColor(1,1,1)
+                        ItemButton[h][ButtonCount[h]].cd:SetAlpha(1)
+
+                        ItemButton[h][ButtonCount[h]].key = ItemButton[h][ButtonCount[h]].text:CreateFontString("ItemButton"..h.."-"..ButtonCount[h].."key", "OVERLAY", "GameFontNormal")
+                        ItemButton[h][ButtonCount[h]].key:SetPoint("TOPRIGHT", ItemButton[h][ButtonCount[h]].text)
+                        ItemButton[h][ButtonCount[h]].key:SetFont(XM_SMedia:Fetch("font","Emblem"), (ItemButton[h][ButtonCount[h]]:GetHeight()*0.3), "OUTLINE")
+                        ItemButton[h][ButtonCount[h]].key:SetTextColor(1,1,1)
+                        ItemButton[h][ButtonCount[h]].key:SetAlpha(1)
+
+                        ItemButton[h][ButtonCount[h]].count = ItemButton[h][ButtonCount[h]].text:CreateFontString("ItemButton"..h.."-"..ButtonCount[h].."count", "OVERLAY", "GameFontNormal")
+                        ItemButton[h][ButtonCount[h]].count:SetPoint("BOTTOMRIGHT", ItemButton[h][ButtonCount[h]].text)
+                        ItemButton[h][ButtonCount[h]].count:SetFont(XM_SMedia:Fetch("font","Emblem"), (ItemButton[h][ButtonCount[h]]:GetHeight()*0.4), "OUTLINE")
+                        ItemButton[h][ButtonCount[h]].count:SetTextColor(1,1,1)
+                        ItemButton[h][ButtonCount[h]].count:SetAlpha(1)
+                    end
+                    ItemButton[h][ButtonCount[h]]:ClearAllPoints()
+                    if (h == 1) then
+                        calcx = -1 * (ButtonSquare + (ButtonSquare/3))
+                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
+                        else
+                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
+                        end
+                    elseif (h == 2) then
+                        calcx = -1 * (ButtonSquare + (ButtonSquare/3))
+                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
+                        else
+                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
+                        end
+                    elseif (h == 3) then
+                        calcx = -1 * (2*ButtonSquare + (ButtonSquare/3))
+                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
+                        else
+                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
+                        end
+                    elseif (h == 4) then
+                        calcx = -1 * (2*ButtonSquare + (ButtonSquare/3))
+                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
+                        else
+                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
+                        end
+                    end
+
+                    ItemButton[h][ButtonCount[h]].ID = i
+                    ItemButton[h][ButtonCount[h]].texture:SetTexture("Interface\\Icons\\"..itemtable[h][i].TXT)
+                    ItemButton[h][ButtonCount[h]]:SetAttribute("type", "item")
+                    ItemButton[h][ButtonCount[h]]:SetAttribute("item", "item:"..itemtable[h][i].ID)
+
+                    if (h == 1) and (ButtonCount[h] >= 1) and (HealthButtonKey and HealthButtonKey ~= "") then
+                        SetOverrideBindingClick(ItemButton[h][1], false, HealthButtonKey, ItemButton[h][1]:GetName())
+                    elseif (h == 3) and (ButtonCount[h-2] < 1) and (ButtonCount[h] >= 1) and (HealthButtonKey and HealthButtonKey ~= "") then
+                        SetOverrideBindingClick(ItemButton[h][1], false, HealthButtonKey, ItemButton[h][1]:GetName())
+                    elseif (h == 3) and (ButtonCount[h-2] >= 1) and (ButtonCount[h] >= 1) then
+                        if (HSButtonKey and HSButtonKey ~= "") then
+                            SetOverrideBindingClick(ItemButton[h-2][1], false, HSButtonKey, ItemButton[h-2][1]:GetName())
+                        end
+                        if (HPotButtonKey and HPotButtonKey ~= "") then
+                            SetOverrideBindingClick(ItemButton[h][1], false, HPotButtonKey, ItemButton[h][1]:GetName())
+                        end
+                    elseif (h == 2) and (ButtonCount[h] >= 1) and (ManaButtonKey and ManaButtonKey ~= "") then
+                        SetOverrideBindingClick(ItemButton[h][1], false, ManaButtonKey, ItemButton[h][1]:GetName())
+                    elseif (h == 4) and (ButtonCount[h-2] < 1) and (ButtonCount[h] >= 1) and (ManaButtonKey and ManaButtonKey ~= "") then
+                        SetOverrideBindingClick(ItemButton[h][1], false, ManaButtonKey, ItemButton[h][1]:GetName())
+                    elseif (h == 4) and (ButtonCount[h-2] >= 1) and (ButtonCount[h] >= 1) then
+                        if (MSButtonKey and MSButtonKey ~= "") then
+                            SetOverrideBindingClick(ItemButton[h-2][1], false, MSButtonKey, ItemButton[h-2][1]:GetName())
+                        end
+                        if (MPotButtonKey and MPotButtonKey ~= "") then
+                            SetOverrideBindingClick(ItemButton[h][1], false, MPotButtonKey, ItemButton[h][1]:GetName())
+                        end
+                    else
+                        ClearOverrideBindings(ItemButton[h][1])
+                    end
+                    ShowUIPanel(ItemButton[h][ButtonCount[h]])
+                end
+            end
+            i = i + 1
+        end
+        if (ButtonCount[h] == 0 and #ItemButton[h] > 0) then
+            ClearOverrideBindings(ItemButton[h][1])
+        end
+        h = h + 1
+    end
+
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMPOTION:PLAYER_REGEN_ENABLED()
+--player leaving combat
+
+    XMPOTION:CreateSecurePotionFrame()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMPOTION:UNIT_INVENTORY_CHANGED(_,unit)
+
+    if (xm_InCombat == false and unit == "player") then
+        XMPOTION:CreateSecurePotionFrame()
+    end
+
+end

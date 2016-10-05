@@ -1,0 +1,1222 @@
+--embedded libs
+local XM_SMedia = LibStub("LibSharedMedia-3.0")
+local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+
+--local variables
+local groupcombat = false
+local playercombat = false
+local clocksync = 0
+
+--combat start/end is not an accurate way to measure dps
+local xm_combatstart = {}
+local xm_combatend = {}
+
+local damageouttable = {} --[fightkey][sourcekey]{TIME, EVENT, VID = victimid, V = victim, SPELL = skill, AMT = amount, ELEM = element, CRIT = crit}
+local damagesourcetable = {} -- [key]{ID = sourceid, NAME = sourcename, OWNERID = ownerid, OWNERNAME = ownername}
+
+local xm_timestart = {}
+local xm_timeend = {}
+local xm_dmgmax = {}
+local xm_dmgtot = {}
+local xm_dps = {}
+local xm_eventcount = {}
+local xm_swingcount = {}
+local xm_misscount = {}
+local xm_dodgecount = {}
+local xm_critcount = {}
+local xm_hitcount = {}
+local xm_target = {}
+
+--events in "swingtable" have a chance to hit or miss
+local swingtable = {
+    [1] = "HITOUT",
+    [2] = "SPELLOUT", 
+    [3] = "MISSOUT", 
+    [4] = "DODGEOUT", 
+    [5] = "BLOCKOUT", 
+    [6] = "DEFLECTOUT", 
+    [7] = "IMMUNEOUT", 
+    [8] = "EVADEOUT", 
+    [9] = "PARRYOUT", 
+    [10] = "RESISTOUT", 
+    [11] = "ABSORBOUT", 
+    [12] = "REFLECTOUT",
+}
+
+--some events in "swingtable" don't have a chance to crit
+local hittable = {
+    [1] = "HITOUT",
+    [2] = "SPELLOUT", 
+    [3] = "MISSOUT", 
+    [4] = "DODGEOUT", 
+    [9] = "PARRYOUT", 
+}
+
+--graphical objects
+local xm_damageframepoint = {}
+local damageframe_srctable = {}
+local damageframe_trgtable = {}
+
+local movex = 0
+local movey = 0
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:OnInitialize()
+--called when addon loads
+
+    --initialize DB for new users
+    if (not XM_DB["XMDAMAGE"]) then
+        XM_DB["XMDAMAGE"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Damage Frame: "..UnitName("player").." - "..GetRealmName():trim())
+
+        --write default values to the current profile (too bad they can't be sorted)
+        local key, value
+        for key, value in pairs(XMDAMAGE.DEFAULTS) do
+            XM_DB["XMDAMAGE"][key] = value
+        end
+    end
+
+    --initialize damage frame
+    XMDAMAGE:CreateDamageFrame()
+
+    --register events
+    XMDAMAGE:RegisterEvent("PLAYER_REGEN_ENABLED")
+    XMDAMAGE:RegisterEvent("PLAYER_REGEN_DISABLED")
+
+--    if (not damagesourcetable[1]) then damagesourcetable[1] = {ID = UnitGUID("player"), NAME = UnitName("player")} end
+
+end
+
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:OnUpdate(elapsed)
+
+    local i,j,k = 0,0,0
+    local fightcount = #damageouttable
+
+    if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
+        xm_InCombat = false
+    end
+
+    if (fightcount >= 1) and (damageframe_hist[2].text:GetText() == ("%.0f"):format(fightcount)) then
+
+        --watch for player to leave combat
+        if (playercombat == true) then
+            if (xm_InCombat == false) then 
+                playercombat = false
+            end
+            if (playercombat == false) and (groupcombat == false) then
+                xm_combatend[fightcount] = GetTime()
+            end
+        end
+
+        --watch for everyone else to leave combat
+        if (groupcombat == true) then
+            groupcombat = false
+            --check if someone in the group is still in combat
+            local grouptype = "raid"
+            local partycount = 5
+            local groupcount = 8
+            local checkgroup = true
+            local playername = UnitName("player")
+            i = 1
+            while (i <= 2) do
+                j = 1
+                if (groupcombat == true or checkgroup == false) then
+                    i = 2
+                    j = 0
+                elseif (i == 1) then
+                    grouptype = "raid"
+                    j = partycount*groupcount
+                    --if a raid is found, don't check party
+                    if (UnitName(grouptype..1)) then checkgroup = false end
+                elseif (i == 2) then
+                    grouptype = "party"
+                    j = partycount
+                end
+                k = 1
+                while (k <= j) do
+                    if (UnitName(grouptype..k) and UnitName(grouptype..k) ~= playername) then
+                        if (UnitAffectingCombat(grouptype..k)) then
+                            groupcombat = true
+                            k = j
+                        end
+                    end
+                    k = k + 1
+                end
+                i = i + 1
+            end
+            if (playercombat == false) and (groupcombat == false) then
+                xm_combatend[fightcount] = GetTime()
+            end
+        end
+
+        if ((playercombat == true) or (groupcombat == true)) then
+            xm_combatend[fightcount] = GetTime()
+            local combatlapse = GetTime() - xm_combatstart[fightcount]
+            if (combatlapse < 0.1) then
+                damageframe_fighttime:SetText("")
+            else
+                damageframe_fighttime:SetText(XMDAMAGE:TimeFormat(combatlapse))
+            end
+        end
+    end
+
+    if (fightcount >= 1) then
+        damageframe_hist:Show()
+        if (playercombat == false) and (groupcombat == false) then
+            if (damageframe_hist[2].text:GetText() == "ALL") then
+                damageframe_hist[3]:Hide()
+            elseif (tonumber(damageframe_hist[2].text:GetText()) < (fightcount + 1)) then
+                damageframe_hist[3]:Show()
+            else
+                damageframe_hist[3]:Hide()
+            end
+            if (damageframe_hist[2].text:GetText() == "ALL") then
+                damageframe_hist[1]:Show()
+                damageframe_hist[2].text:Show()
+            elseif (damageframe_hist[2].text:GetText() > ("%.0f"):format(1)) then
+                damageframe_hist[1]:Show()
+                damageframe_hist[2].text:Show()
+            elseif (damageframe_hist[2].text:GetText() == ("%.0f"):format(1)) then
+                damageframe_hist[1]:Hide()
+                damageframe_hist[2].text:Show()
+            else
+                damageframe_hist[1]:Hide()
+                damageframe_hist[2].text:Hide()
+            end
+        else
+            damageframe_hist[1]:Hide()
+            damageframe_hist[3]:Hide()
+            damageframe_hist[2].text:Show()
+        end
+    else
+        damageframe_hist:Hide()
+        damageframe_dpstext:SetText("")
+        damageframe_fighttime:SetText("")
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:AddDamageSource(sourceid, source, ownerid, ownername)
+
+    local i = 1
+    local sourcecount = #damagesourcetable
+    local sourcekey = 0
+
+    --first check if the damage source is in our sourcetable already
+    i = 1
+    while (i <= sourcecount) do
+        if (damagesourcetable[i].ID == sourceid) then
+            if (damagesourcetable[i].NAME == "Unknown") then damagesourcetable[i].NAME = source end
+            sourcekey = i
+            i = sourcecount
+        end
+        i = i + 1
+    end
+
+    if (sourcekey < 1) then
+        damagesourcetable[(sourcecount + 1)] = {ID = sourceid, NAME = source, OWNERID = ownerid, OWNERNAME = ownername}
+        sourcekey = (sourcecount + 1)
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:DamageOut(timestamp, event, sourceid, source, victimid, victim, skill, amount, element, crit)
+
+    --clock sync to convert time() to GetTime()
+    if (clocksync <= 1) then
+        clocksync = timestamp - GetTime()
+        if (clocksync + 1 <= 1) then
+            clocksync = (-1)*clocksync
+        end
+    end
+
+    --NOTE: Damage Sources must be "player", "partyn", "raidpetn" etc to use GUID
+
+--    --check if the source is a player-controlled character (0 = player, 4 = pet)
+--    if (strsub(sourceid, 5, 5) == "0" or strsub(sourceid, 5, 5) == "4") then
+
+    local i,j,k = 0,0,0
+    local sourcecount = #damagesourcetable
+    local fightcount = #damageouttable
+    local sourcekey = 0
+    local fightkey = fightcount
+    local playerid = UnitGUID("player")
+    local playername = UnitName("player")
+
+    --first check if the damage source is in our sourcetable already
+    i = 1
+    while (i <= sourcecount) do
+        if (damagesourcetable[i].ID == sourceid) then
+            if (damagesourcetable[i].NAME == "Unknown") then damagesourcetable[i].NAME = source end
+            sourcekey = i
+            --if damage source is a pet, also add to owner's damage
+            if (damagesourcetable[i].OWNERID) then
+                XMDAMAGE:DamageOut(timestamp, "PET"..event, damagesourcetable[i].OWNERID, damagesourcetable[i].OWNERNAME, victimid, victim, skill, amount, element, crit)
+            end
+            i = sourcecount
+        end
+        i = i + 1
+    end
+
+    if (sourcekey < 1) then
+        --check player first
+        if (playerid == sourceid) then
+            damagesourcetable[(sourcecount + 1)] = {ID = playerid, NAME = playername}
+            sourcekey = (sourcecount + 1)
+        elseif (UnitGUID("playerpet") == sourceid) then
+            damagesourcetable[(sourcecount + 1)] = {ID = UnitGUID("playerpet"), NAME = UnitName("playerpet"), OWNERID = playerid, OWNERNAME = playername}
+            sourcekey = (sourcecount + 1)
+        --if not in the list already, check to see if they're in our raid/party
+        else
+            local grouplist = {}
+            local checkgroup = true
+            i = 1
+            while (i <= 2) do
+                if (sourcekey >= 1 or checkgroup == false) then
+                    grouplist = {}
+                    i = 2
+                elseif (i == 1) then
+                    grouplist = XM:GroupMemberList("raid") --[1]=players,[2]=pets
+                    --if a raid is found, don't check party
+                    if (grouplist[1][1]) then checkgroup = false end
+                elseif (i == 2) then
+                    grouplist = XM:GroupMemberList("party") --[1]=players,[2]=pets
+                end
+                j = 1
+                while (j <= #grouplist) do
+                    if (sourcekey >= 1) then
+                        j = #grouplist    
+                    else
+                        k = 1
+                        while (k <= #grouplist[j]) do
+                            if (sourcekey >= 1) then
+                                k = #grouplist[j]
+                            elseif (grouplist[j][k].ID == sourceid) then
+                                --if source is a pet, add it to the owner's total
+                                if (j == 2) then
+				    XMDAMAGE:DamageOut(timestamp, "PET"..event, grouplist[j][k].OWNERID, grouplist[j][k].OWNERNAME, victimid, victim, skill, amount, element, crit)
+                                end
+                                damagesourcetable[(sourcecount + 1)] = {ID = grouplist[j][k].ID, NAME = grouplist[j][k].NAME, OWNERID = grouplist[j][k].OWNERID, OWNERNAME = grouplist[j][k].OWNERNAME, }
+                                sourcekey = (sourcecount + 1)
+                                k = #grouplist[j]
+                            end
+                            k = k + 1
+                        end
+                    end
+                    j = j + 1
+                end
+                i = i + 1
+            end
+        end
+    end
+
+    if (sourcekey >= 1) then
+
+        --first damage event caused by player
+        if (playercombat == false) and (sourceid == playerid) then
+
+            --check if player is already in combat
+            if (playercombat == false) then
+                if (xm_InCombat == true) then
+                    playercombat = true
+                end
+            end
+
+            --or a damage event must happen to reset the damage frame
+            if (playercombat == false) then
+                if (event == "DOTOUT") then  --dots can continue to tick after you leave combat
+                elseif (strfind(event,"PET")) then  --some pet damage / vehicles dont put you in combat
+                else
+                    playercombat = true
+                    xm_InCombat = true
+                end
+            end
+
+            --nobody has initiated combat yet, and you just did
+            if ((groupcombat == false) or (fightcount < 1)) and (playercombat == true) then
+                fightkey = fightcount + 1
+                xm_combatstart[fightkey] = GetTime()
+                xm_combatend[fightkey] = GetTime()
+            end
+
+        --first damage event not caused by player
+        elseif (groupcombat == false) and (sourceid ~= playerid) and (sourceid ~= UnitGUID("playerpet")) then
+
+            --check if someone in the group is already in combat
+            local grouptype = "raid"
+            local partycount = 5
+            local groupcount = 8
+            local checkgroup = true
+            i = 1
+            while (i <= 2) do
+                j = 1
+                if (groupcombat == true or checkgroup == false) then
+                    i = 2
+                    j = 0
+                elseif (i == 1) then
+                    grouptype = "raid"
+                    j = partycount*groupcount
+                    --if a raid is found, don't check party
+                    if (UnitName(grouptype..1)) then checkgroup = false end
+                elseif (i == 2) then
+                    grouptype = "party"
+                    j = partycount
+                end
+                k = 1
+                while (k <= j) do
+                    if (UnitName(grouptype..k) and UnitName(grouptype..k) ~= playername and UnitName(grouptype..k) == damagesourcetable[sourcekey].NAME) then
+                        if (UnitAffectingCombat(grouptype..k)) then
+                            groupcombat = true
+                            k = j
+                        end
+                    end
+                    k = k + 1
+                end
+                i = i + 1
+            end
+            --or a damage event must happen to reset the damage frame
+            if (groupcombat == false) then
+                if (event == "DOTOUT") then  --dots can continue to tick after you leave combat
+                elseif (strfind(event,"PET")) then  --some pet damage / vehicles dont put you in combat
+                else
+                    groupcombat = true
+                end
+            end
+
+            --start a new fight (but you're not in combat yet)
+            if ((playercombat == false) or (fightcount < 1)) and (groupcombat == true) then
+                fightkey = fightcount + 1
+                xm_combatstart[fightkey] = GetTime()
+                xm_combatend[fightkey] = GetTime()
+            end
+        end
+
+        if (fightkey >= 1) then
+            i = 1
+            --populate damage table for all fights
+            while (i <= fightkey) do
+                if (not damageouttable[i]) then 
+                    damageouttable[i] = {}
+                    --clear the fight statistics
+                    xm_timestart[i] = {}
+                    xm_timeend[i] = {}
+                    xm_dmgmax[i] = {}
+                    xm_dmgtot[i] = {}
+                    xm_dps[i] = {}
+                    xm_eventcount[i] = {}
+                    xm_swingcount[i] = {}
+                    xm_misscount[i] = {}
+                    xm_dodgecount[i] = {}
+                    xm_critcount[i] = {}
+                    xm_hitcount[i] = {}
+                    xm_target[i] = {}
+                end
+                j = 1
+                while (j <= sourcekey) do
+                    if (not damageouttable[i][j]) then 
+                        damageouttable[i][j] = {} 
+                        --initialize statistics for each damage source
+                        xm_timestart[i][j] = 0
+                        xm_timeend[i][j] = 0
+                        xm_dmgmax[i][j] = {AMT = 0, R = 1, G = 1, B = 1, A = 1}
+                        xm_dmgtot[i][j] = 0
+                        xm_dps[i][j] = 0
+                        xm_eventcount[i][j] = 0
+                        xm_swingcount[i][j] = 0
+                        xm_misscount[i][j] = 0
+                        xm_dodgecount[i][j] = 0
+                        xm_critcount[i][j] = 0
+                        xm_hitcount[i][j] = 0
+                        xm_target[i][j] = {}
+                    end
+                    j = j + 1
+                end
+                i = i + 1
+            end
+
+            --insert damage event into damageouttable
+            damageouttable[fightkey][sourcekey][xm_eventcount[fightkey][sourcekey] + 1] = {TIME = timestamp, EVENT = event, VID = victimid, V = victim, SPELL = skill, AMT = amount, ELEM = element, CRIT = crit}
+            xm_eventcount[fightkey][sourcekey] = xm_eventcount[fightkey][sourcekey] + 1
+
+            if ((groupcombat == true) or (playercombat == true)) and (damageframe_hist[2].text:GetText() ~= ("%.0f"):format(fightkey)) then
+                damageframe_hist[2].text:SetText(fightkey)
+                XMDAMAGE:ClearDamageFrame()
+            end
+
+            --calculate damage
+            XMDAMAGE:DamageOutCalculate(fightkey, sourcekey, timestamp, event, victim, amount, element, crit)
+
+        end
+    end
+--    end
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:DamageOutCalculate(fightkey, sourcekey, timestamp, event, victim, amount, element, crit)
+--numbers are calculated with each added damage point (optimize cpu usage)
+
+    --calculate dps time
+    xm_timeend[fightkey][sourcekey] = timestamp
+    if (xm_eventcount[fightkey][sourcekey] == 1) then
+        xm_timestart[fightkey][sourcekey] = timestamp
+    end
+
+    --calculate target list
+    local damagetargettablecount = #xm_target[fightkey][sourcekey]
+    if (damagetargettablecount < 1) then
+        xm_target[fightkey][sourcekey][1] = victim
+    else
+        local i = 1
+        while (i <= damagetargettablecount) do
+            if (xm_target[fightkey][sourcekey][i] == victim) then
+                i = damagetargettablecount
+            elseif (i == damagetargettablecount) then
+                xm_target[fightkey][sourcekey][(damagetargettablecount + 1)] = victim
+            end
+            i = i + 1
+        end
+    end
+
+    --calculate damage amount
+    xm_dmgtot[fightkey][sourcekey] = xm_dmgtot[fightkey][sourcekey] + amount
+    if (amount > xm_dmgmax[fightkey][sourcekey].AMT) then
+        local rgbcolor = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}
+
+        if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
+            rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
+        elseif (XM_DB["COLOR_TABLE"][event]) then
+            rgbcolor = XM_DB["COLOR_TABLE"][event]
+        end
+        xm_dmgmax[fightkey][sourcekey] = {AMT = amount, R = rgbcolor.r, G = rgbcolor.g, B = rgbcolor.b, A = rgbcolor.a}
+    end
+
+    --calculate dps
+    local timelapse = xm_timeend[fightkey][sourcekey] - xm_timestart[fightkey][sourcekey]
+    if (timelapse < 1) then timelapse = 1 end
+    xm_dps[fightkey][sourcekey] = (xm_dmgtot[fightkey][sourcekey])/(timelapse)
+
+
+    --calculate miss rate
+    local index, value
+    for index, value in pairs(swingtable) do
+        if (value == event) then
+            xm_swingcount[fightkey][sourcekey] = xm_swingcount[fightkey][sourcekey] + 1
+        end
+    end
+
+    --calculate crit rate
+    for index, value in pairs(hittable) do
+        if (value == event) then
+            xm_hitcount[fightkey][sourcekey] = xm_hitcount[fightkey][sourcekey] + 1
+            if (crit) then xm_critcount[fightkey][sourcekey] = xm_critcount[fightkey][sourcekey] + 1 end
+        end
+    end
+
+    --calculate dodge rate
+    if (event == "MISSOUT") then
+        xm_misscount[fightkey][sourcekey] = xm_misscount[fightkey][sourcekey] + 1
+    elseif (event == "DODGEOUT" or event == "PARRYOUT") then
+        xm_dodgecount[fightkey][sourcekey] = xm_dodgecount[fightkey][sourcekey] + 1
+    end
+
+    if (sourcekey == XMDAMAGE:GetPlayerSource()) then
+        XMDAMAGE:DamageGraphUpdate(fightkey, sourcekey)
+    end
+
+    XMDAMAGE:DamageBarUpdate(fightkey)
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:DamageGraphUpdate(inpfight, inpsource)
+--numbers are calcuated for each added damage point
+
+    if (inpfight >= 1) then
+        local combatlapse = xm_combatend[inpfight] - xm_combatstart[inpfight]
+        if (combatlapse < 0.1) then
+            damageframe_fighttime:SetText("")
+        else
+            damageframe_fighttime:SetText(XMDAMAGE:TimeFormat(combatlapse))
+        end
+        if (combatlapse < 1) then combatlapse = 1 end
+
+        --graphic object positions
+        local i = 1 --number of events per sourcekey
+
+        while (i <= xm_eventcount[inpfight][inpsource]) do
+
+            local rgbcolor = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}
+
+            local element = damageouttable[inpfight][inpsource][i].ELEM
+            local event = damageouttable[inpfight][inpsource][i].EVENT
+
+            if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
+                rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
+            elseif (XM_DB["COLOR_TABLE"][event]) then
+                rgbcolor = XM_DB["COLOR_TABLE"][event]
+            end
+
+            local statusamt = damageouttable[inpfight][inpsource][i].AMT
+            if (statusamt == nil or statusamt < 1) then 
+                statusamt = strsub(damageouttable[inpfight][inpsource][i].EVENT, 1, strlen(damageouttable[inpfight][inpsource][i].EVENT) - 3)
+            elseif (damageouttable[inpfight][inpsource][i].CRIT) then 
+                statusamt = XM_DB["CRITCHAR"]..damageouttable[inpfight][inpsource][i].AMT..XM_DB["CRITCHAR"] 
+            end
+
+            local statusspell = damageouttable[inpfight][inpsource][i].SPELL
+            if (statusspell == nil) then statusspell = "" end
+
+            local statustarg = damageouttable[inpfight][inpsource][i].V
+            if (statustarg == nil) then statustarg = "" end
+            
+            if (not xm_damageframepoint[i]) then
+                xm_damageframepoint[i] = CreateFrame("Frame", "XM Damage Frame Point"..i, XM_DAMAGEFRAME)
+                xm_damageframepoint[i]:SetFrameLevel((XM_DAMAGEFRAME:GetFrameLevel())+1)
+                xm_damageframepoint[i]:SetHeight(2)
+                xm_damageframepoint[i]:SetWidth(2)
+                xm_damageframepoint[i]:EnableMouse(true)
+            end
+            xm_damageframepoint[i]:SetScript("OnEnter", function() XMDAMAGE:ShowDamageStatus(statusamt, statusspell, statustarg, rgbcolor) end)
+
+            if (not xm_damageframepoint[i].texture) then
+                xm_damageframepoint[i].texture = xm_damageframepoint[i]:CreateTexture()
+                xm_damageframepoint[i].texture:SetTexture(XM_SMedia:Fetch("statusbar","Smooth"))
+                xm_damageframepoint[i].texture:SetAllPoints(xm_damageframepoint[i])
+            end
+            xm_damageframepoint[i].texture:SetVertexColor(rgbcolor.r, rgbcolor.g, rgbcolor.b,rgbcolor.a)
+            xm_damageframepoint[i]:Show()
+
+            local calcx,calcy = 0,0
+
+--            calcx = (damageouttable[inpfight][inpsource][i].TIME - xm_timestart[inpfight][inpsource])/(combatlapse) * (XM_DAMAGEFRAME:GetWidth() - 40)
+            calcx = (damageouttable[inpfight][inpsource][i].TIME - (clocksync + xm_combatstart[inpfight]))/(combatlapse) * (XM_DAMAGEFRAME:GetWidth() - 40)
+            if calcx <= 0 then 
+                calcx = 0
+            elseif (calcx >= XM_DAMAGEFRAME:GetWidth() - 40) then 
+                calcx = (XM_DAMAGEFRAME:GetWidth() - 40)
+            end
+
+            calcy = (damageouttable[inpfight][inpsource][i].AMT)/(xm_dmgmax[inpfight][inpsource].AMT) * (XM_DAMAGEFRAME:GetHeight() - 2)
+            if (calcy <= 0) then
+                calcy = 0
+            elseif (calcy >= XM_DAMAGEFRAME:GetHeight() - 2) then
+                calcy = XM_DAMAGEFRAME:GetHeight() - 2
+            end
+            xm_damageframepoint[i]:ClearAllPoints()
+            xm_damageframepoint[i]:SetPoint("BOTTOMLEFT", XM_DAMAGEFRAME, "BOTTOMLEFT", calcx, calcy)
+
+            i = i + 1
+        end
+
+        if (xm_swingcount[inpfight][inpsource] > 0) then
+            local timelapse = xm_timeend[inpfight][inpsource] - xm_timestart[inpfight][inpsource]
+            if (timelapse < 1) then timelapse = 1 end
+            damageframe_timetext:SetText((("%.1f"):format(timelapse)).." sec")
+            damageframe_dpstext:SetText(("%.0f"):format(xm_dps[inpfight][inpsource]).." dps")
+            damageframe_maxtext:SetText(xm_dmgmax[inpfight][inpsource].AMT)
+            damageframe_maxtext:SetTextColor(xm_dmgmax[inpfight][inpsource].R, xm_dmgmax[inpfight][inpsource].G, xm_dmgmax[inpfight][inpsource].B, xm_dmgmax[inpfight][inpsource].A)
+
+            if (xm_misscount[inpfight][inpsource] > 0) then
+                damageframe_misstext:SetText(("%.1f"):format(100*xm_misscount[inpfight][inpsource]/xm_swingcount[inpfight][inpsource]))
+            else
+                damageframe_misstext:SetText("")
+            end
+            if (xm_dodgecount[inpfight][inpsource] > 0) then
+                damageframe_dodgetext:SetText(("%.1f"):format(100*xm_dodgecount[inpfight][inpsource]/xm_swingcount[inpfight][inpsource]))
+            else
+                damageframe_dodgetext:SetText("")
+            end
+            if (xm_critcount[inpfight][inpsource] > 0) then
+                damageframe_crittext:SetText(("%.1f"):format(100*xm_critcount[inpfight][inpsource]/xm_hitcount[inpfight][inpsource]))
+            else
+                damageframe_crittext:SetText("")
+            end
+        else
+            damageframe_timetext:SetText("")
+            damageframe_dpstext:SetText("")
+            damageframe_misstext:SetText("")
+            damageframe_dodgetext:SetText("")
+            damageframe_crittext:SetText("")
+        end
+
+    elseif (inpsource >= 1) then
+
+        local i,j,k = 1,1,1
+        local fightcount = #damageouttable
+        local totalcombatlapse = 0
+        local totaltimelapse = 0
+        local totaleventcount = 0
+        local totaldmgmax = {AMT = 0, R = 1, G = 1, B = 1}
+        local totaldmgtot = 0
+        local totalswingcount = 0
+        local totalmisscount = 0
+        local totaldodgecount = 0
+        local totalcritcount = 0
+        local totalhitcount = 0
+
+        i = 1
+        while (i <= fightcount) do
+            if (xm_eventcount[i][inpsource] >= 1) then
+                totalcombatlapse = totalcombatlapse + (xm_combatend[i] - xm_combatstart[i])
+                totaltimelapse = totaltimelapse + (xm_timeend[i][inpsource] - xm_timestart[i][inpsource])
+                totaleventcount = totaleventcount + xm_eventcount[i][inpsource]
+                totaldmgtot = totaldmgtot + xm_dmgtot[i][inpsource]
+                totalswingcount = totalswingcount + xm_swingcount[i][inpsource]
+                totalmisscount = totalmisscount + xm_misscount[i][inpsource]
+                totaldodgecount = totaldodgecount + xm_dodgecount[i][inpsource]
+                totalcritcount = totalcritcount + xm_critcount[i][inpsource]
+                totalhitcount = totalhitcount + xm_hitcount[i][inpsource]
+
+                if (xm_dmgmax[i][inpsource].AMT > totaldmgmax.AMT) then
+                    totaldmgmax.AMT = xm_dmgmax[i][inpsource].AMT
+                    damageframe_maxtext:SetTextColor(xm_dmgmax[i][inpsource].R, xm_dmgmax[i][inpsource].G, xm_dmgmax[i][inpsource].B, xm_dmgmax[i][inpsource].A)
+                    damageframe_maxtext:SetText(totaldmgmax.AMT)
+                end
+            end
+            i = i + 1
+        end
+            
+        if (totaltimelapse < 1) then totaltimelapse = 1 end
+        if (totalcombatlapse < 1) then totalcombatlapse = 1 end
+
+        damageframe_fighttime:SetText(XMDAMAGE:TimeFormat(totalcombatlapse))
+        damageframe_timetext:SetText((("%.1f"):format(totaltimelapse)).." sec")
+
+        local dps = (totaldmgtot)/(totaltimelapse)
+        damageframe_dpstext:SetText(("%.0f"):format(dps).." dps")
+
+        if (totalswingcount > 0) then
+            if (totalmisscount > 0) then
+                damageframe_misstext:SetText(("%.1f"):format(100*totalmisscount/totalswingcount))
+            else
+                damageframe_misstext:SetText("")
+            end
+            if (totaldodgecount > 0) then
+                damageframe_dodgetext:SetText(("%.1f"):format(100*totaldodgecount/totalswingcount))
+            else
+                damageframe_dodgetext:SetText("")
+            end
+            if (totalcritcount > 0) then
+                damageframe_crittext:SetText(("%.1f"):format(100*totalcritcount/totalhitcount))
+            else
+                damageframe_crittext:SetText("")
+            end
+        else
+            damageframe_misstext:SetText("")
+            damageframe_dodgetext:SetText("")
+            damageframe_crittext:SetText("")
+        end
+
+        --graphic object positions
+        k = 1 --number of graphic objects
+        i = 1 --number of fights
+        while (i <= fightcount) do
+            j = 1 --number of events per fight
+            while (j <= xm_eventcount[i][inpsource]) do
+
+                local rgbcolor = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}
+
+                local element = damageouttable[i][inpsource][j].ELEM
+                local event = damageouttable[i][inpsource][j].EVENT
+
+                if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
+                    rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
+                elseif (XM_DB["COLOR_TABLE"][event]) then
+                    rgbcolor = XM_DB["COLOR_TABLE"][event]
+                end
+
+                local statusamt = damageouttable[i][inpsource][j].AMT
+                if (statusamt == nil or statusamt < 1) then 
+                    statusamt = strsub(damageouttable[i][inpsource][j].EVENT, 1, strlen(damageouttable[i][inpsource][j].EVENT) - 3)
+                elseif (damageouttable[i][inpsource][j].CRIT) then 
+                    statusamt = XM_DB["CRITCHAR"]..damageouttable[i][inpsource][j].AMT..XM_DB["CRITCHAR"] 
+                end
+
+                local statusspell = damageouttable[i][inpsource][j].SPELL
+                if (statusspell == nil) then statusspell = "" end
+
+                local statustarg = damageouttable[i][inpsource][j].V
+                if (statustarg == nil) then statustarg = "" end
+            
+                if (not xm_damageframepoint[k]) then
+                    xm_damageframepoint[k] = CreateFrame("Frame", "XM Damage Frame Point"..k, XM_DAMAGEFRAME)
+                    xm_damageframepoint[k]:SetFrameLevel((XM_DAMAGEFRAME:GetFrameLevel())+1)
+                    xm_damageframepoint[k]:SetHeight(2)
+                    xm_damageframepoint[k]:SetWidth(2)
+                    xm_damageframepoint[k]:EnableMouse(true)
+                end
+                xm_damageframepoint[k]:SetScript("OnEnter", function() XMDAMAGE:ShowDamageStatus(statusamt, statusspell, statustarg, rgbcolor) end)
+
+                if (not xm_damageframepoint[k].texture) then
+                    xm_damageframepoint[k].texture = xm_damageframepoint[k]:CreateTexture()
+                    xm_damageframepoint[k].texture:SetTexture(XM_SMedia:Fetch("statusbar","Smooth"))
+                    xm_damageframepoint[k].texture:SetAllPoints(xm_damageframepoint[k])
+                end
+                xm_damageframepoint[k].texture:SetVertexColor(rgbcolor.r, rgbcolor.g, rgbcolor.b,rgbcolor.a)
+                xm_damageframepoint[k]:Show()
+
+                local x = 1
+                local xtime = 0
+                local timeadd = 0
+                while (x < i) do
+                    timeadd = timeadd + (xm_combatend[x] - xm_combatstart[x])
+                    x = x + 1
+                end
+--                xtime = (damageouttable[i][inpsource][j].TIME - xm_timestart[i][inpsource]) + timeadd
+                xtime = (damageouttable[i][inpsource][j].TIME - (clocksync + xm_combatstart[i])) + timeadd
+
+                calcx = (xtime)/(totalcombatlapse) * (XM_DAMAGEFRAME:GetWidth() - 40)
+                if calcx <= 0 then 
+                    calcx = 0
+                elseif (calcx >= XM_DAMAGEFRAME:GetWidth() - 40) then 
+                    calcx = (XM_DAMAGEFRAME:GetWidth() - 40)
+                end
+
+                calcy = (damageouttable[i][inpsource][j].AMT)/(totaldmgmax.AMT) * (XM_DAMAGEFRAME:GetHeight() - 2)
+                if (calcy <= 0) then
+                    calcy = 0
+                elseif (calcy >= XM_DAMAGEFRAME:GetHeight() - 2) then
+                    calcy = XM_DAMAGEFRAME:GetHeight() - 2
+                end
+                xm_damageframepoint[k]:ClearAllPoints()
+                xm_damageframepoint[k]:SetPoint("BOTTOMLEFT", XM_DAMAGEFRAME, "BOTTOMLEFT", calcx, calcy)
+
+                k = k + 1
+                j = j + 1
+            end
+            i = i + 1
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:DamageBarUpdate(inpfight)
+--
+
+    if (inpfight >= 1) then
+
+        local j = 1
+        local i = 1
+        local fightsourcecount = #damageouttable[inpfight]
+        local damagebar = {}
+        local damagebarcount = #damagebar
+
+        i = 1
+        while (i <= fightsourcecount) do
+            if (xm_dps[inpfight][i] >= 1) then
+                local amount = tonumber(("%.0f"):format(xm_dps[inpfight][i]))
+                if (damagebarcount < 1) then
+                    damagebar[1] = {NAME = damagesourcetable[i].NAME, AMT = amount, OWNERNAME = damagesourcetable[i].OWNERNAME}
+                    damagebarcount = damagebarcount + 1
+                elseif (xm_dps[inpfight][i] > damagebar[damagebarcount].AMT) then
+                    damagebar[damagebarcount + 1] = {NAME = damagesourcetable[i].NAME, AMT = amount, OWNERNAME = damagesourcetable[i].OWNERNAME}
+                    damagebarcount = damagebarcount + 1
+                else
+                    local j = damagebarcount
+                    while (j >= 1) do
+                        if (j == 1) then
+                            tinsert(damagebar, 1, {NAME = damagesourcetable[i].NAME, AMT = amount, OWNERNAME = damagesourcetable[i].OWNERNAME})
+                            damagebarcount = damagebarcount + 1
+                            j = 1
+                        elseif (xm_dps[inpfight][i] > damagebar[j].AMT) then
+                            tinsert(damagebar, (j+1), {NAME = damagesourcetable[i].NAME, AMT = amount, OWNERNAME = damagesourcetable[i].OWNERNAME})
+                            damagebarcount = damagebarcount + 1
+                            j = 1
+                        end
+                        j = j - 1
+                    end
+
+                end
+
+            end
+
+            i = i + 1
+        end
+
+        i = 1
+        while (i <= damagebarcount) do
+
+            if (not damageframe_srctable[i]) then
+                damageframe_srctable[i] = XM_DAMAGEFRAME:CreateFontString("damageframe_srctable"..i, "OVERLAY", "GameFontNormal")
+                damageframe_srctable[i]:SetFont(XM_SMedia:Fetch("font",XM_DB["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM_DB["XMDAMAGE"]["MISSTEXT"]["SIZE"])
+                damageframe_srctable[i]:SetTextColor(1,1,1,1)
+            end
+            damageframe_srctable[i]:ClearAllPoints()
+            damageframe_srctable[i]:SetPoint("TOPLEFT", damageframe_src, "TOPLEFT", 0, -10*(damagebarcount - i))
+            if (damagebar[i].OWNERNAME) then
+                damageframe_srctable[i]:SetText(damagebar[i].AMT.." "..damagebar[i].NAME.." ("..damagebar[i].OWNERNAME..")")
+            else
+                damageframe_srctable[i]:SetText(damagebar[i].AMT.." "..damagebar[i].NAME)
+            end
+
+            i = i + 1
+        end
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:CreateDamageFrame()
+
+    local settings = XM_DB["XMDAMAGE"]
+
+    --main damage frame
+    if (not XM_DAMAGEFRAME) then
+        XM_DAMAGEFRAME = CreateFrame("Frame", "XM Damage Frame", UIParent)
+        XM_DAMAGEFRAME:SetPoint("TOPLEFT", UIParent, settings["DAMAGEFRAME"]["POSX"],settings["DAMAGEFRAME"]["POSY"])
+    end
+    XM_DAMAGEFRAME:SetFrameStrata(settings["DAMAGEFRAME"]["STRATA"])
+    XM_DAMAGEFRAME:SetHeight(settings["DAMAGEFRAME"]["HEIGHT"])
+    XM_DAMAGEFRAME:SetWidth(settings["DAMAGEFRAME"]["WIDTH"])
+    XM_DAMAGEFRAME:SetScale(settings["DAMAGEFRAME"]["SCALE"])
+    XM_DAMAGEFRAME:SetAlpha(settings["DAMAGEFRAME"]["ALPHA"])
+    XM_DAMAGEFRAME:SetScript("OnUpdate", function() XMDAMAGE:OnUpdate(arg1) end)
+    XM_DAMAGEFRAME:SetScript("OnLeave", function() XMDAMAGE:HideDamageStatus() end)
+
+    --movable damage frame
+    XM_DAMAGEFRAME:SetMovable(true)
+    XM_DAMAGEFRAME:SetClampedToScreen(true)
+    XM_DAMAGEFRAME:EnableMouse(true)
+    XM_DAMAGEFRAME:SetScript("OnMouseDown", function() XMDAMAGE:OnClick(arg1) end)
+    XM_DAMAGEFRAME:SetScript("OnMouseUp", function() XMDAMAGE:OnDragStop(arg1) end)
+
+    --source frame
+    if (not damageframe_src) then
+        damageframe_src = CreateFrame("Frame", "damageframe_src", XM_DAMAGEFRAME)
+        damageframe_src:SetPoint("TOPLEFT", XM_DAMAGEFRAME, "TOPRIGHT")
+    end
+    damageframe_src:SetHeight(settings["DAMAGEFRAME"]["HEIGHT"])
+    damageframe_src:SetWidth(80)
+
+    --fight time
+    if (not damageframe_fighttime) then
+        damageframe_fighttime = XM_DAMAGEFRAME:CreateFontString("damageframe_fighttime", "OVERLAY", "GameFontNormal")
+        damageframe_fighttime:SetPoint("BOTTOM", damageframe_src, "TOP")
+    end
+    damageframe_fighttime:SetFont(XM_SMedia:Fetch("font",XM_DB["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM_DB["XMDAMAGE"]["MISSTEXT"]["SIZE"])
+    damageframe_fighttime:SetText("")
+    damageframe_fighttime:SetTextColor(1,1,1,1)
+
+    --target frame
+    if (not damageframe_trg) then
+        damageframe_trg = CreateFrame("Frame", "damageframe_trg", XM_DAMAGEFRAME)
+        damageframe_trg:SetPoint("TOPLEFT", damageframe_src, "TOPRIGHT")
+    end
+    damageframe_trg:SetHeight(settings["DAMAGEFRAME"]["HEIGHT"])
+    damageframe_trg:SetWidth(40)
+
+    --damage history buttons
+    if (not damageframe_hist) then
+        damageframe_hist = CreateFrame("Frame", "damageframe_hist", XM_DAMAGEFRAME)
+        damageframe_hist:SetPoint("BOTTOMRIGHT", XM_DAMAGEFRAME, "TOPRIGHT")
+    end
+    damageframe_hist:SetHeight(10)
+    damageframe_hist:SetWidth(40)
+
+    local i = 1
+    while (i <= 3) do
+        if (not damageframe_hist[i]) then
+            damageframe_hist[i] = CreateFrame("Frame", "damageframe_hist"..i, damageframe_hist)
+            if (i == 1) then
+                damageframe_hist[i]:SetPoint("BOTTOMRIGHT", damageframe_hist, "BOTTOMRIGHT", -30, 0)
+                damageframe_hist[i]:SetFrameLevel(damageframe_hist:GetFrameLevel() + 1)
+                damageframe_hist[i]:SetHeight(10)
+                damageframe_hist[i]:SetWidth(10)
+                damageframe_hist[i]:EnableMouse(true)
+                damageframe_hist[i]:SetScript("OnMouseDown", function() XMDAMAGE:HistPrev(arg1) end)
+            elseif (i == 2) then
+                damageframe_hist[i]:SetPoint("BOTTOMRIGHT", damageframe_hist, "BOTTOMRIGHT", 0, 0)
+                damageframe_hist[i]:SetFrameLevel(damageframe_hist:GetFrameLevel())
+                damageframe_hist[i]:SetHeight(10)
+                damageframe_hist[i]:SetWidth(40)
+            elseif (i == 3) then
+                damageframe_hist[i]:SetPoint("BOTTOMRIGHT", damageframe_hist, "BOTTOMRIGHT", 0, 0)
+                damageframe_hist[i]:SetFrameLevel(damageframe_hist:GetFrameLevel() + 1)
+                damageframe_hist[i]:SetHeight(10)
+                damageframe_hist[i]:SetWidth(10)
+                damageframe_hist[i]:EnableMouse(true)
+                damageframe_hist[i]:SetScript("OnMouseDown", function() XMDAMAGE:HistNext(arg1) end)
+            end
+        end
+        if (not damageframe_hist[i].texture) then
+            damageframe_hist[i].texture = damageframe_hist[i]:CreateTexture()
+            damageframe_hist[i].texture:SetAllPoints(damageframe_hist[i])
+        end
+        damageframe_hist[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["DAMAGEBACK"]["TEXTURE"]))
+        damageframe_hist[i].texture:SetVertexColor(settings["DAMAGEBACK"]["COLOR"].r,settings["DAMAGEBACK"]["COLOR"].g,settings["DAMAGEBACK"]["COLOR"].b,settings["DAMAGEBACK"]["COLOR"].a)
+
+        if (not damageframe_hist[i].text) then
+            damageframe_hist[i].text = damageframe_hist[i]:CreateFontString("damageframe_hist"..i.."text", "OVERLAY", "GameFontNormal")
+            damageframe_hist[i].text:SetPoint("CENTER", damageframe_hist[i])
+        end
+        damageframe_hist[i].text:SetFont(XM_SMedia:Fetch("font",settings["DPSTEXT"]["FONT"]), settings["DPSTEXT"]["SIZE"])
+        damageframe_hist[i].text:SetTextColor(settings["DPSTEXT"]["COLOR"].r,settings["DPSTEXT"]["COLOR"].g,settings["DPSTEXT"]["COLOR"].b,settings["DPSTEXT"]["COLOR"].a)
+
+        if (i == 1) then
+            damageframe_hist[i].text:SetText("<")
+        elseif (i == 2) then
+            damageframe_hist[i].text:SetText(#damageouttable)
+        elseif (i == 3) then
+            damageframe_hist[i].text:SetText(">")
+        end
+
+        i = i + 1
+    end
+
+    --damage frame background
+    if (not XM_DAMAGEFRAME.texture) then
+        XM_DAMAGEFRAME.texture = XM_DAMAGEFRAME:CreateTexture()
+        XM_DAMAGEFRAME.texture:SetAllPoints(XM_DAMAGEFRAME)
+    end
+    XM_DAMAGEFRAME.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["DAMAGEBACK"]["TEXTURE"]))
+    XM_DAMAGEFRAME.texture:SetVertexColor(settings["DAMAGEBACK"]["COLOR"].r,settings["DAMAGEBACK"]["COLOR"].g,settings["DAMAGEBACK"]["COLOR"].b,settings["DAMAGEBACK"]["COLOR"].a)
+
+    --damage frame foreground
+    if (not damage_frame_infobar) then
+        damageframe_infobar = CreateFrame("Frame", "damageframe_infobar", XM_DAMAGEFRAME)
+        damageframe_infobar:SetFrameLevel((XM_DAMAGEFRAME:GetFrameLevel())+1)
+        damageframe_infobar:SetAllPoints(XM_DAMAGEFRAME)
+    end
+    damageframe_infobar:SetHeight(XM_DAMAGEFRAME:GetHeight())
+    damageframe_infobar:SetWidth(XM_DAMAGEFRAME:GetWidth())
+
+    if (not damageframe_dpstext) then
+        damageframe_dpstext = damageframe_infobar:CreateFontString("damageframe_dpstext", "OVERLAY", "GameFontNormal")
+        damageframe_dpstext:SetPoint("BOTTOMRIGHT", damageframe_infobar)
+    end
+    damageframe_dpstext:SetFont(XM_SMedia:Fetch("font",settings["DPSTEXT"]["FONT"]), settings["DPSTEXT"]["SIZE"])
+    damageframe_dpstext:SetTextColor(settings["DPSTEXT"]["COLOR"].r,settings["DPSTEXT"]["COLOR"].g,settings["DPSTEXT"]["COLOR"].b,settings["DPSTEXT"]["COLOR"].a)
+
+    if (not damageframe_maxtext) then
+        damageframe_maxtext = damageframe_infobar:CreateFontString("damageframe_maxtext", "OVERLAY", "GameFontNormal")
+        damageframe_maxtext:SetPoint("TOPRIGHT", damageframe_infobar)
+    end
+    damageframe_maxtext:SetFont(XM_SMedia:Fetch("font",settings["MAXTEXT"]["FONT"]), settings["DPSTEXT"]["SIZE"])
+    damageframe_maxtext:SetTextColor(settings["MAXTEXT"]["COLOR"].r,settings["MAXTEXT"]["COLOR"].g,settings["MAXTEXT"]["COLOR"].b,settings["MAXTEXT"]["COLOR"].a)
+
+    if (not damageframe_timetext) then
+        damageframe_timetext = damageframe_infobar:CreateFontString("damageframe_timetext", "OVERLAY", "GameFontNormal")
+        damageframe_timetext:SetPoint("BOTTOMRIGHT", damageframe_infobar, 0, 10)
+    end
+    damageframe_timetext:SetFont(XM_SMedia:Fetch("font",settings["TIMETEXT"]["FONT"]), settings["TIMETEXT"]["SIZE"])
+    damageframe_timetext:SetTextColor(settings["TIMETEXT"]["COLOR"].r,settings["TIMETEXT"]["COLOR"].g,settings["TIMETEXT"]["COLOR"].b,settings["TIMETEXT"]["COLOR"].a)
+
+    if (not damageframe_dodgetext) then
+        damageframe_dodgetext = damageframe_infobar:CreateFontString("damageframe_dodgetext", "OVERLAY", "GameFontNormal")
+        damageframe_dodgetext:SetPoint("BOTTOMRIGHT", damageframe_infobar, 0, 25)
+    end
+    damageframe_dodgetext:SetFont(XM_SMedia:Fetch("font",settings["DODGETEXT"]["FONT"]), settings["DODGETEXT"]["SIZE"])
+    damageframe_dodgetext:SetTextColor(settings["DODGETEXT"]["COLOR"].r,settings["DODGETEXT"]["COLOR"].g,settings["DODGETEXT"]["COLOR"].b,settings["DODGETEXT"]["COLOR"].a)
+
+    if (not damageframe_misstext) then
+        damageframe_misstext = damageframe_infobar:CreateFontString("damageframe_misstext", "OVERLAY", "GameFontNormal")
+        damageframe_misstext:SetPoint("BOTTOMRIGHT", damageframe_infobar, 0, 35)
+    end
+    damageframe_misstext:SetFont(XM_SMedia:Fetch("font",settings["MISSTEXT"]["FONT"]), settings["MISSTEXT"]["SIZE"])
+    damageframe_misstext:SetTextColor(settings["MISSTEXT"]["COLOR"].r,settings["MISSTEXT"]["COLOR"].g,settings["MISSTEXT"]["COLOR"].b,settings["MISSTEXT"]["COLOR"].a)
+
+    if (not damageframe_crittext) then
+        damageframe_crittext = damageframe_infobar:CreateFontString("damageframe_timetext", "OVERLAY", "GameFontNormal")
+        damageframe_crittext:SetPoint("BOTTOMRIGHT", damageframe_infobar, 0, 45)
+    end
+    damageframe_crittext:SetFont(XM_SMedia:Fetch("font",settings["CRITTEXT"]["FONT"]), settings["CRITTEXT"]["SIZE"])
+    damageframe_crittext:SetTextColor(settings["CRITTEXT"]["COLOR"].r,settings["CRITTEXT"]["COLOR"].g,settings["CRITTEXT"]["COLOR"].b,settings["CRITTEXT"]["COLOR"].a)
+
+    if (not damageframe_statustext) then
+        damageframe_statustext = XM_DAMAGEFRAME:CreateFontString("damageframe_statustext", "OVERLAY", "GameFontNormal")
+        damageframe_statustext:SetPoint("TOPLEFT", XM_DAMAGEFRAME, "BOTTOMLEFT")
+    end
+    damageframe_statustext:SetFont(XM_SMedia:Fetch("font",settings["MISSTEXT"]["FONT"]), settings["MISSTEXT"]["SIZE"])
+
+    XM_DAMAGEFRAME:Show()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:ClearDamageFrame()
+
+    local i,j = 0,0
+
+    i = 1
+    j = #xm_damageframepoint
+    while (i <= j) do
+        if (xm_damageframepoint[i]) then
+            xm_damageframepoint[i]:Hide()
+        end
+        i = i + 1
+    end
+
+    XMDAMAGE:HideDamageStatus()
+
+    i = 1
+    j = #damageframe_trgtable
+    while (i <= j) do
+        if (damageframe_trgtable[i]) then
+            damageframe_trgtable[i]:SetText("")
+        end
+        i = i + 1
+    end
+
+    i = 1
+    j = #damageframe_srctable
+    while (i <= j) do
+        if (damageframe_srctable[i]) then
+            damageframe_srctable[i]:SetText("")
+        end
+        i = i + 1
+    end
+
+    damageframe_maxtext:SetText("")
+    damageframe_misstext:SetText("")
+    damageframe_dodgetext:SetText("")
+    damageframe_crittext:SetText("")
+    damageframe_timetext:SetText("")
+    damageframe_dpstext:SetText("")
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:GetPlayerSource()
+
+    local sourcecount = #damagesourcetable
+    local sourcekey = 0
+    local playerid = UnitGUID("player")
+    local i = 1
+    while (i <= sourcecount) do
+        if (damagesourcetable[i].ID == playerid) then
+            sourcekey = i
+            i = sourcecount
+        end
+        i = i + 1
+    end
+    return sourcekey
+
+end
+
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:HistPrev(inpbutton)
+
+    if (inpbutton == "LeftButton") then
+        local sourcekey = XMDAMAGE:GetPlayerSource()
+        local fightkey = 0
+
+        if (damageframe_hist[2].text:GetText() == "ALL") then
+            damageframe_hist[2].text:SetText(#damageouttable)
+            fightkey = tonumber(damageframe_hist[2].text:GetText())
+        elseif (damageframe_hist[2].text:GetText() > ("%.0f"):format(1)) then
+            damageframe_hist[2].text:SetText(damageframe_hist[2].text:GetText() - 1)
+            fightkey = tonumber(damageframe_hist[2].text:GetText())
+        end
+        XMDAMAGE:ClearDamageFrame()
+        XMDAMAGE:DamageGraphUpdate(fightkey, sourcekey)
+        XMDAMAGE:DamageBarUpdate(fightkey)
+
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:HistNext(inpbutton)
+
+    if (inpbutton == "LeftButton") then
+        local sourcekey = XMDAMAGE:GetPlayerSource()
+        local fightkey = 0
+
+        if (damageframe_hist[2].text:GetText() == ("%.0f"):format(#damageouttable)) then
+            damageframe_hist[2].text:SetText("ALL")
+            fightkey = 0
+        else
+            damageframe_hist[2].text:SetText(damageframe_hist[2].text:GetText() + 1)
+            fightkey = tonumber(damageframe_hist[2].text:GetText())
+        end
+        XMDAMAGE:ClearDamageFrame()
+        XMDAMAGE:DamageGraphUpdate(fightkey, sourcekey)
+        XMDAMAGE:DamageBarUpdate(fightkey)
+
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:ShowDamageStatus(amount, spell, target, color)
+
+    damageframe_statustext:SetText(amount.." "..spell.." "..target)
+    damageframe_statustext:SetTextColor(color.r, color.g, color.b, color.a)
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:HideDamageStatus()
+
+    damageframe_statustext:SetText("")
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:OnClick(inpbutton)
+
+    if (inpbutton == "LeftButton" and IsControlKeyDown()) then
+    elseif (inpbutton == "LeftButton" and IsShiftKeyDown()) then
+        movex, movey = GetCursorPosition()
+        XM_DAMAGEFRAME:StartMoving()
+    end
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:OnDragStop()
+--save position
+
+    XMDAMAGE:SavePosition()
+    XM_DAMAGEFRAME:StopMovingOrSizing()
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:SavePosition()
+--save position
+
+    local cursorx, cursory = GetCursorPosition()
+    movex = cursorx - movex
+    movey = cursory - movey
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:PLAYER_REGEN_ENABLED()
+--player leaving combat
+
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:PLAYER_REGEN_DISABLED()
+--player entering combat
+    --sometimes there's a combat event before you get +combat !
+end
+
+--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+function XMDAMAGE:TimeFormat(inpsec)
+--convert seconds to mm:ss format
+
+    local timestring = ""
+
+    if (inpsec > 60) then
+        local timemin = floor(inpsec/60)
+        local timesec = ("%.1f"):format(inpsec - (timemin*60))
+--        timesec = strsub("0"..timesec, -4)
+
+        timestring = timemin.." m "..timesec.." s"
+    else
+        local timesec = ("%.1f"):format(inpsec)
+        timestring = timesec.." sec"
+    end
+
+    return timestring
+
+end
