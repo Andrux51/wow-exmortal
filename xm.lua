@@ -66,15 +66,13 @@ end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:OnEnable()
---called when addon is enabled (called after OnInitialize)
+    --called when addon is enabled (called after OnInitialize)
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:OnDisable()
---called when addon is disabled (standby/logout)
-
+    --called when addon is disabled (standby/logout)
     XM:UnregisterAllEvents()
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -99,26 +97,21 @@ function XM:PLAYER_LOGIN()
 --    elseif (xm_PlayerClassName == "HUNTER") then
 --    elseif (xm_PlayerClassName == "MAGE") then
 --    elseif (xm_PlayerClassName == "PALADIN") then
---        --XM:LOGIN_PALADIN()
+--        XM:LOGIN_PALADIN()
 --    elseif (xm_PlayerClassName == "PRIEST") then
 --    elseif (xm_PlayerClassName == "ROGUE") then
---        --XM:LOGIN_ROGUE()
+--        XM:LOGIN_ROGUE()
 --    elseif (xm_PlayerClassName == "SHAMAN") then
---        --XM:LOGIN_SHAMAN()
+--        XM:LOGIN_SHAMAN()
 --    elseif (xm_PlayerClassName == "WARLOCK") then
 --    elseif (xm_PlayerClassName == "WARRIOR") then
---        --XM:LOGIN_WARRIOR()
+--        XM:LOGIN_WARRIOR()
 --    end
 
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:CHARACTER_POINTS_CHANGED()
---player talent point change
-end
-
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:UNIT_HEALTH(_,arg1)				
+function XM:UNIT_HEALTH(_,arg1)
 --unit health changes
 
     --player health change
@@ -194,7 +187,7 @@ function XM:UnitPower(_,arg1)
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:UNIT_DISPLAYPOWER()				
+function XM:UNIT_DISPLAYPOWER()
 --power type change
 
     PlayerLastMPFull = UnitPower("player",0)
@@ -202,7 +195,7 @@ function XM:UNIT_DISPLAYPOWER()
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:PLAYER_REGEN_DISABLED()				
+function XM:PLAYER_REGEN_DISABLED()
 --player entering combat
 
     xm_InCombat = true
@@ -211,7 +204,7 @@ function XM:PLAYER_REGEN_DISABLED()
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:PLAYER_REGEN_ENABLED()				
+function XM:PLAYER_REGEN_ENABLED()
 --player leaving combat
 
     xm_InCombat = false
@@ -222,7 +215,7 @@ function XM:PLAYER_REGEN_ENABLED()
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:PLAYER_COMBO_POINTS()				
+function XM:PLAYER_COMBO_POINTS()
 --player combo point changes
 
     local cpnum = GetComboPoints()
@@ -260,7 +253,7 @@ function XM:CHAT_MSG_SKILL(_,arg1)
         rankend = strlen(arg1) - 1
         local i = rankend
         while (i > 0) do
-            if (strsub(arg1, i, i) == " ") then 
+            if (strsub(arg1, i, i) == " ") then
                 rankstart = i + 1
                 i = 0
             else
@@ -427,7 +420,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                     skill = ExtraAttack[1]
                     tremove(ExtraAttack, 1)
                 else
-                    if (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then 
+                    if (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then
                         if (not filter) then XM:Display_Event("HITOUT", text, isCrit, element, source, victim, XM_DB["MHCHAR"]) end
                     elseif (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) then
                         if (not filter) then XM:Display_Event("HITOUT", text, isCrit, element, source, victim, XM_DB["OHCHAR"]) end
@@ -603,7 +596,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
 
             if (not amount) then amount = 0 end
             local text = amount
-            if (isCrush) then 
+            if (isCrush) then
                 text = XM_DB["CRUSHCHAR"]..text..XM_DB["CRUSHCHAR"]
             elseif (isGlance) then
                 text = XM_DB["GLANCECHAR"]..text..XM_DB["GLANCECHAR"]
@@ -729,7 +722,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                     XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, ExtraAttack[1])
                     tremove(ExtraAttack, 1)
                 else
-                    if (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then 
+                    if (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then
                         XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, XM_DB["MHCHAR"])
                     elseif (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) then
                         XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, XM_DB["OHCHAR"])
@@ -799,7 +792,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                 end
             end
         end
-    
+
     --your killing blows
     elseif (strfind(event, "_DIED") or strfind(event, "_DESTROYED")) and (sourceid == UnitGUID("player")) then
         XM:Display_Event("KILLBLOW", XM_Locale["KILLINGBLOW"], nil, nil, source, victim, nil)
@@ -819,11 +812,11 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
         if (victimid == UnitGUID("player")) then
             --mana filter
             if (amount >= XM_DB["MANAFILTERINC"]) then
-                XM:Display_Event("POWERGAIN", "+"..amount.." "..power, nil, nil, source, victim, skill)
+                --XM:Display_Event("POWERGAIN", "+"..amount.." "..power, nil, nil, source, victim, skill)
             end
         end
 
-    --'drain' or 'leech' events 
+    --'drain' or 'leech' events
     elseif (strfind(event, "_DRAIN") or strfind(event, "_LEECH")) then
 
         if strfind(event, "SWING") then
@@ -846,7 +839,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                 XM:Display_Event("POWERGAIN", "-"..amount.." "..power, nil, nil, source, victim, skill)
             end
         end
-			
+
     --'extra attacks'
     elseif (strfind(event, "_EXTRA_ATTACKS") and victimid == UnitGUID("player")) then
 
@@ -944,23 +937,23 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
             else
                 XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM_DB["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, source, victim, nil)
             end
-elseif (strfind(event, "AURA_REFRESH")) then 
-             if (strfind(event, "SWING")) then 
-                skill, extra = "Melee", two 
-            elseif (strfind(event, "ENVIRONMENTAL")) then 
-                skill, extra = one, two 
-            else 
-                skill, extra = two, four 
-            end 
- 
-            if (extra == "BUFF") then 
-                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM_DB["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, source, victim, nil) 
-            else 
-                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM_DB["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, source, victim, nil) 
+elseif (strfind(event, "AURA_REFRESH")) then
+             if (strfind(event, "SWING")) then
+                skill, extra = "Melee", two
+            elseif (strfind(event, "ENVIRONMENTAL")) then
+                skill, extra = one, two
+            else
+                skill, extra = two, four
+            end
+
+            if (extra == "BUFF") then
+                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM_DB["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, source, victim, nil)
+            else
+                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM_DB["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, source, victim, nil)
             end
 
             if (XMSWING) then XMSWING:SpeedCheck(false, 0) end
-         
+
 --            if (xm_PlayerClassName == "SHAMAN") then
 --                XM:BUFFGAIN_SHAMAN(event, source, victim, skill)
 --            elseif (xm_PlayerClassName == "WARRIOR") then
@@ -1120,7 +1113,7 @@ function XM:GetDebuffLeft(inpskill)
         elseif (debuffName) then
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
     if (not debuffLeft) then debuffLeft = 0 end
@@ -1142,7 +1135,7 @@ function XM:GetDebuffCount(inpskill)
         elseif (debuffName) then
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
     if (not debuffCount) then debuffCount = 0 end
@@ -1166,7 +1159,7 @@ function XM:BlizzardCombatTextEvent(_,arg1, arg2, arg3)
         if (arg2 == "Execute" or arg2 == "Overpower") then
         --revenge doesn't trigger by blizzard event
         --victory rush should be the only active spell remaining
-        else 
+        else
             XM:Display_Event("EXECUTE", arg2, true, nil, xm_PlayerName, xm_PlayerName, nil)
         end
     end
@@ -1195,7 +1188,7 @@ function XM:Display_Event(event, msg, crit, element, source, victim, skill)
             elseif (XM_DB["SHOWSKILL"][event] > 0) then
                 msg = msg.." ("..XM:ShortenString(skill, XM_DB["SHOWSKILL"][event])..")"
             elseif (XM_DB["SHOWSKILL"][event] == 0) then
-                msg = msg.." ("..skill..")"    
+                msg = msg.." ("..skill..")"
             end
         end
 
@@ -1228,7 +1221,7 @@ function XM:Display_Event(event, msg, crit, element, source, victim, skill)
             elseif (XM_DB["SHOWTARGET"][event] > 0) then
                 msg = msg.." ("..XM:ShortenString(targetinterest, XM_DB["SHOWTARGET"][event])..")"
             elseif (XM_DB["SHOWTARGET"][event] == 0) then
-                msg = msg.." ("..targetinterest..")"    
+                msg = msg.." ("..targetinterest..")"
             end
         end
 
@@ -1255,7 +1248,7 @@ function XM:ShortenString(strString, shorttype)
             else
                 return strString
             end
-        else 
+        else
             return strString
         end
     else
@@ -1279,7 +1272,6 @@ function XM:RegisterXMEvents()
     XM:RegisterEvent("UNIT_DISPLAYPOWER")
     XM:RegisterEvent("PLAYER_REGEN_ENABLED")
     XM:RegisterEvent("PLAYER_REGEN_DISABLED")
-    XM:RegisterEvent("CHARACTER_POINTS_CHANGED")
     XM:RegisterEvent("COMBAT_TEXT_UPDATE", "BlizzardCombatTextEvent")
 
 --++--
