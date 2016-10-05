@@ -38,3 +38,5 @@ xm.lua
 
 Modules\xm_rune_defaults.lua
 Modules\xm_rune.lua
+
+xm_class_shaman.lua

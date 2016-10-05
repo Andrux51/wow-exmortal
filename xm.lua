@@ -85,7 +85,16 @@ end
 function XM:PLAYER_LOGIN()
 --set class vars on login (called after OnEnable)
 
-    xm_PlayerClassText,xm_PlayerClassName = UnitClass("player")
+    xm_PlayerClassText,xm_PlayerClassName,xm_PlayerClassId = UnitClass("player")
+
+    -- class id's:
+    -- 1-WARRIOR, 2-PALADIN, 3-HUNTER, 4-ROGUE, 5-PRIEST, 6-DEATHKNIGHT
+    -- 7-SHAMAN, 8-MAGE, 9-WARLOCK, 10-MONK, 11-DRUID, 12-DEMONHUNTER
+
+    -- check for files having been loaded
+    if(xm_class_shaman_loaded and xm_PlayerClassId == 7) then
+        XM:LOGIN_SHAMAN()
+    end
 
     --class-specific login scripts
 --    if (xm_PlayerClassName == "DEATHKNIGHT") then

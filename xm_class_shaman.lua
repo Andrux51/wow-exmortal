@@ -1,4 +1,5 @@
 --MUST HAVE "xm_init.lua" LOADED FIRST
+xm_class_shaman_loaded = true
 
 --shaman local variables
 local Flurry = false
@@ -11,10 +12,11 @@ XM.CHECKFLURRY = false
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:LOGIN_SHAMAN()
 --set class vars on login
+    print("you are shaman")
 
     --shaman variables
-    Flurry = XM:TalentCheck("Flurry")
-    if (Flurry >= 1) then Flurry = Flurry + 1 end
+    --Flurry = XM:TalentCheck("Flurry")
+    --if (Flurry >= 1) then Flurry = Flurry + 1 end
 
 end
 

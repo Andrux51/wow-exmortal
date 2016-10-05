@@ -89,7 +89,7 @@ function XM:SpellTalentCheck(inpspell, inptalent, inptarget)
         else
             return XM:TalentCheck(inptalent, inptarget)
         end
-    end    
+    end
 
 end
 
@@ -99,6 +99,7 @@ end
 xm_PlayerName = ""
 xm_PlayerClassText = ""
 xm_PlayerClassName = ""
+xm_PlayerClassId = 0
 xm_InCombat = false
 
 xm_PowerTable = {
