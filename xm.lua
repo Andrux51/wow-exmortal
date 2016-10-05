@@ -62,10 +62,6 @@ function XM:OnInitialize()
 
     --register events
     XM:RegisterXMEvents()
-
-    --login script
-    XM:PLAYER_LOGIN()
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -119,10 +115,6 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:CHARACTER_POINTS_CHANGED()
 --player talent point change
-
-    --check class-specific options
-    XM:PLAYER_LOGIN()
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -423,12 +415,6 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
         --outgoing damage
         elseif (sourceid == playerid) then
 
-            --seem to be having issues getting the login script to run
-            if (xm_init == false) then
-                XM:PLAYER_LOGIN()
-                xm_init = true
-            end
-
             --damage filter
             if (XM_DB["DMGFILTEROUT"] >= 1 and amount < XM_DB["DMGFILTEROUT"]) then filter = true end
 
@@ -483,15 +469,15 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                 end
             end
 
---            if (xm_PlayerClassName == "DEATHKNIGHT") then
---                XM:DAMAGEOUT_DEATHKNIGHT(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
---            elseif (xm_PlayerClassName == "PALADIN") then
---                XM:DAMAGEOUT_PALADIN(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
---            elseif (xm_PlayerClassName == "SHAMAN") then
---                XM:DAMAGEOUT_SHAMAN(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
---            elseif (xm_PlayerClassName == "WARRIOR") then
---                XM:DAMAGEOUT_WARRIOR(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
---            end
+        --    if (xm_PlayerClassName == "DEATHKNIGHT") then
+        --        XM:DAMAGEOUT_DEATHKNIGHT(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
+        --    elseif (xm_PlayerClassName == "PALADIN") then
+        --        XM:DAMAGEOUT_PALADIN(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
+        --    elseif (xm_PlayerClassName == "SHAMAN") then
+        --        XM:DAMAGEOUT_SHAMAN(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
+        --    elseif (xm_PlayerClassName == "WARRIOR") then
+        --        XM:DAMAGEOUT_WARRIOR(event, source, victim, skill, --amount, element, amountResist, amountBlock, amountAbsorb, isCrit, --isGlance, isCrush)
+        --    end
 
         --incoming pet damage (melee, spell, etc..)
         elseif (playerpetid and victimid == playerpetid) then
