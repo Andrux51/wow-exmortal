@@ -76,4 +76,3 @@ function XM:BUFFFADE_SHAMAN(event, source, victim, skill)
     end
 
 end
-

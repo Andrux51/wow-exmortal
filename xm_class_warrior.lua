@@ -106,7 +106,7 @@ function XM:MISSINC_WARRIOR(event, source, victim, skill, misstype)
 
     --check defensive stance and trigger revenge (blizzard doesn't trigger it)
     if (Revenge and GetShapeshiftForm(true) == 2 and (misstype == "DODGE" or misstype == "PARRY" or misstype == "BLOCK")) then
-        --squelch revenge spam if the spell is on cooldown        
+        --squelch revenge spam if the spell is on cooldown
         local start,duration,enabled = GetSpellCooldown("Revenge")
         if ((start + duration - GetTime()) <= 0) then
             XM:Display_Event("EXECUTE", "Revenge", true, nil, victim, victim, nil)

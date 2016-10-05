@@ -49,7 +49,7 @@ function XM:OnInitialize()
 
     --load shared media
     XM:RegisterMedia()
-	
+
     --initialize animation frame
     XM:CreateAnimationFrame()
 
@@ -363,7 +363,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
         end
 
         local text = amount
-        if (isCrush) then 
+        if (isCrush) then
             text = XM_DB["CRUSHCHAR"]..text..XM_DB["CRUSHCHAR"]
         elseif (isGlance) then
             text = XM_DB["GLANCECHAR"]..text..XM_DB["GLANCECHAR"]
@@ -1287,16 +1287,16 @@ function XM:RegisterXMEvents()
 
     --player login
     XM:RegisterEvent("PLAYER_LOGIN")
-	
+
     --skill gains
     XM:RegisterEvent("CHAT_MSG_SKILL")
-	
+
     --player target change
     XM:RegisterEvent("PLAYER_TARGET_CHANGED")
-	
+
     --combat log events to display
     XM:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
- 
+
     --non-combat events to display
     XM:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 
