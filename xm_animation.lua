@@ -58,7 +58,7 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
     if (not rgbcolor) then
         rgbcolor = {r = 1.0, g = 1.0, b = 1.0}
     end
-    
+
     --set up text
     XM:SetFontSize(adat, adat.font, adat.textsize, adat.fontshadow)
     adat:SetTextColor(rgbcolor.r, rgbcolor.g, rgbcolor.b)
@@ -78,21 +78,16 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:ONUPDATE_ANIMATION(elapsed)	
+function XM:ONUPDATE_ANIMATION(elapsed)
 --upate animations that are being used
 
     local i = 1
-    local textslot = false
-    local key, value
 	local framerate = GetFramerate()
 	timerino = 1.6/framerate
     --check for any text slots
     while (i <= #ArrayAniData) do
-        for key, value in pairs(ArrayAniData[i]) do
-            if (value:IsVisible() == 1) then
-                textslot = true
-                XM:DoAnimation(value, timerino)
-            end
+        for k, v in pairs(ArrayAniData[i]) do
+            XM:DoAnimation(v, timerino)
         end
         i = i + 1
     end
@@ -122,7 +117,7 @@ function XM:DoAnimation(aniData, elapsed)
             if (adat:IsVisible() == 1) then
                 i = #arrFrameTexts + 1
             else
-                adat = false
+                --adat = false -- completely blow away the text row object?
                 i = i + 1
             end
         end
@@ -291,7 +286,6 @@ function XM:CreateAnimationFrame()
     XM_ANIMATIONFRAME:SetPoint("CENTER")
     XM_ANIMATIONFRAME:SetScript("OnUpdate", function() XM:ONUPDATE_ANIMATION(arg1) end)
     XM:AniInit()
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -303,4 +297,3 @@ function XM:SetFontSize(object, font, textsize, fontshadow)
     object:SetFont(XM_SMedia:Fetch("font",font), textsize, arrShadowOutline[fontshadow])
 
 end
-
