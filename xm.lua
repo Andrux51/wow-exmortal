@@ -298,6 +298,27 @@ function XM:CHAT_MSG_COMBAT_FACTION_CHANGE(_,arg1)
     end
 
 end
+
+function XM:TruncateAmount(amount)
+    result = tostring(amount)
+
+    if(strlen(result) > 8) then -- 100m
+        return strsub(result, 1, 3).."m"
+    elseif(strlen(result) > 7) then -- 10.1m
+        return strsub(result, 1, 2).."."..strsub(result,3,3).."m"
+    elseif(strlen(result) > 6) then -- 1.2m
+        return strsub(result, 1, 1).."."..strsub(result, 2, 2).."m"
+    elseif(strlen(result) > 5) then -- 100k
+        return strsub(result, 1, 3).."k"
+    elseif(strlen(result) > 4) then -- 10.1k
+        return strsub(result, 1, 2).."."..strsub(result,3,3).."k"
+    elseif(strlen(result) > 3) then -- 1.2k
+        return strsub(result, 1, 1).."."..strsub(result, 2, 2).."k"
+    end
+
+    return result
+end
+
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID, srcName, srcFlags, srcRaidFlags, dstGUID, dstName, dstFlags, dstRaidFlags, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve)
 --displays parsed info based on combat log events
@@ -362,7 +383,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
             skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, four, xm_ElementTable[(six)], seven, eight, nine, ten, eleven, twelve
         end
 
-        local text = amount
+        local text = XM:TruncateAmount(amount)
         if (isCrush) then
             text = XM_DB["CRUSHCHAR"]..text..XM_DB["CRUSHCHAR"]
         elseif (isGlance) then
@@ -371,13 +392,13 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
             text = XM_DB["CRITCHAR"]..text..XM_DB["CRITCHAR"]
         end
         if (amountAbsorb) and (XM_DB["ABSORBINC"]) then
-            text = text.." ("..XM_Locale["ABSORB"].." "..amountAbsorb..")"
+            text = text.." ("..XM_Locale["ABSORB"].." "..XM:TruncateAmount(amountAbsorb)..")"
         end
         if (amountBlock) and (XM_DB["BLOCKINC"]) then
-            text = text.." ("..XM_Locale["BLOCK"].." "..amountBlock..")"
+            text = text.." ("..XM_Locale["BLOCK"].." "..XM:TruncateAmount(amountBlock)..")"
         end
         if (amountResist) and (XM_DB["RESISTINC"]) then
-            text = text.." ("..XM_Locale["RESIST"].." "..amountResist..")"
+            text = text.." ("..XM_Locale["RESIST"].." "..XM:TruncateAmount(amountResist)..")"
         end
 
         --incoming damage (melee, spell, etc..)
@@ -604,15 +625,15 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
                 text = XM_DB["CRITCHAR"]..text..XM_DB["CRITCHAR"]
             end
             if (amountAbsorb) and (XM_DB["ABSORBINC"]) then
-                text = text.." ("..XM_Locale["ABSORB"].." "..amountAbsorb..")"
+                text = text.." ("..XM_Locale["ABSORB"].." "..XM:TruncateAmount(amountAbsorb)..")"
             end
             if (amountBlock) and (XM_DB["BLOCKINC"]) then
-                text = text.." ("..XM_Locale["BLOCK"].." "..amountBlock..")"
+                text = text.." ("..XM_Locale["BLOCK"].." "..XM:TruncateAmount(amountBlock)..")"
             end
             if (amountResist) and (XM_DB["RESISTINC"]) then
-                text = text.." ("..XM_Locale["RESIST"].." "..amountResist..")"
+                text = text.." ("..XM_Locale["RESIST"].." "..XM:TruncateAmount(amountResist)..")"
             end
-    
+
             if (victimid == UnitGUID("player")) and (XM_DB["DMGFILTERINC"] < 1 or amount >= XM_DB["DMGFILTERINC"]) then
                 XM:Display_Event("DMGSHIELDINC", "-"..text, isCrit, element, source, victim, skill)
             elseif (sourceid == UnitGUID("player")) and (XM_DB["DMGFILTEROUT"] < 1 or amount >= XM_DB["DMGFILTEROUT"]) then
@@ -635,12 +656,12 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
             skill, amount, isCrit, extra = two, four, seven, five
         end
 
-        local healtext = amount
+        local healtext = XM:TruncateAmount(amount)
         local healamt = amount
         if (extra) then
             if (extra > 0) then
                 healamt = amount - extra
-                healtext = healamt.." {"..extra.."}"
+                healtext = XM:TruncateAmount(healamt).." {"..XM:TruncateAmount(extra).."}"
             end
         end
 
@@ -648,7 +669,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, timestamp, event, hideCaster, srcGUID
         if (strfind(event, "SPELL_PERIODIC") and (not XM_DB["SHOWHOTS"])) then
         else
             if (isCrit) then
-                healtext = XM_DB["CRITCHAR"]..healtext..XM_DB["CRITCHAR"]
+                healtext = XM_DB["CRITCHAR"]..healtext.."+"..XM_DB["CRITCHAR"]
             end
             --self heals
             if (sourceid == UnitGUID("player") and victimid == UnitGUID("player")) then
