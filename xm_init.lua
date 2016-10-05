@@ -4,7 +4,7 @@ if (not XM) then
 end
 
 --eXMortal version number
-XM.VERSION = "302.09"
+XM.VERSION = "0.2.0"
 
 --global embedded libs
 XM_DB = nil --defined at xm.lua OnInitialize(requires char info)

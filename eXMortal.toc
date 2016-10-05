@@ -1,7 +1,7 @@
-## Interface: 40100
+## Interface: 70000
 ## Title: eXMortal |cff007FFF-Ace3-|r
 ## Notes: Scrolling Combat Text & Advanced UI Elements
-## Version: 302.09
+## Version: 0.2.0
 ## OptionalDeps: Ace3, LibSharedMedia-3.0
 ## SavedVariables: XM_CONFIG
 ## X-Category: Combat
