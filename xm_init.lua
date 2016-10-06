@@ -3,15 +3,13 @@ if (not XM) then
     XM = LibStub("AceAddon-3.0"):NewAddon("XM", "AceEvent-3.0", "AceConsole-3.0")
 end
 
+xmEvents = {}
+
 --eXMortal version number
 XM.VERSION = "0.2.0"
 
 --global embedded libs
 XM_DB = nil --defined at xm.lua OnInitialize(requires char info)
-
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
---GLOBAL FUNCTIONS (accessible to all xm scripts and modules)
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:SpellCheck(inpspell)

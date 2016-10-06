@@ -85,29 +85,10 @@ function XM:PLAYER_LOGIN()
     -- 1-WARRIOR, 2-PALADIN, 3-HUNTER, 4-ROGUE, 5-PRIEST, 6-DEATHKNIGHT
     -- 7-SHAMAN, 8-MAGE, 9-WARLOCK, 10-MONK, 11-DRUID, 12-DEMONHUNTER
 
-    -- check for files having been loaded
+    -- check for loaded module file and class id
     if(xm_class_shaman_loaded and xm_PlayerClassId == 7) then
-        XM:LOGIN_SHAMAN()
+        XM:InitShaman()
     end
-
-    --class-specific login scripts
---    if (xm_PlayerClassName == "DEATHKNIGHT") then
---        XM:LOGIN_DEATHKNIGHT()
---    elseif (xm_PlayerClassName == "DRUID") then
---    elseif (xm_PlayerClassName == "HUNTER") then
---    elseif (xm_PlayerClassName == "MAGE") then
---    elseif (xm_PlayerClassName == "PALADIN") then
---        XM:LOGIN_PALADIN()
---    elseif (xm_PlayerClassName == "PRIEST") then
---    elseif (xm_PlayerClassName == "ROGUE") then
---        XM:LOGIN_ROGUE()
---    elseif (xm_PlayerClassName == "SHAMAN") then
---        XM:LOGIN_SHAMAN()
---    elseif (xm_PlayerClassName == "WARLOCK") then
---    elseif (xm_PlayerClassName == "WARRIOR") then
---        XM:LOGIN_WARRIOR()
---    end
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
