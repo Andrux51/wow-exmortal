@@ -1,2 +1,0 @@
-Plugins act as standalone scripts and do not contain functions that are integrated into any of the eXMortal files (except options).
-Plugins may be removed or disabled without affecting any other portions of the addon.
