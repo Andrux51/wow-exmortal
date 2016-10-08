@@ -34,7 +34,7 @@ function XMGRID:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     local i,j = 1,1

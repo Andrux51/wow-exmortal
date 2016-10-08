@@ -1,6 +1,6 @@
 --embedded libs
 local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
 --spells that reset swing timer (0 = none, 1 = mh, 2 = oh, 3 = range, 4 = both, 5 = either)
 local xm_SwingReset = {
@@ -79,13 +79,13 @@ function XMSWING:OnInitialize()
 --called when addon loads
 
     --initialize DB for new users
-    if (not XM_DB["XMSWING"]) then
-        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Swing Frame: "..UnitName("player").." - "..GetRealmName():trim())
-        XM_DB["XMSWING"] = {}
+    if (not XM.db["XMSWING"]) then
+        DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Swing Frame: "..UnitName("player").." - "..GetRealmName():trim())
+        XM.db["XMSWING"] = {}
         --write default values to the current profile (too bad they can't be sorted)
         local key, value
         for key, value in pairs(XMSWING.DEFAULTS) do
-            XM_DB["XMSWING"][key] = value
+            XM.db["XMSWING"][key] = value
         end
     end
 
@@ -327,7 +327,7 @@ function XMSWING:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     local i = 1
@@ -369,7 +369,7 @@ function XMSWING:OnUpdate(elapsed)
             swingframe[i].timeleft:SetText("")
             swingframe[i].swingbar:Hide()
             swingframe[i].lagbar:Hide()
-            if (xm_InCombat == false and swingmove == false) then
+            if (XM.player.combatActive == false and swingmove == false) then
                 swingframe[i]:Hide()
             end
         else
@@ -420,9 +420,9 @@ function XMSWING:OnUpdate(elapsed)
             hitpercent = hitrating/((82/52)*(131/63)^((playerlevel-70)/10))
         end
 
-        if (xm_PlayerClassName == "SHAMAN") and (XM:TalentCheck("Dual Wield Specialization") ~= nil) and (XMSWING.HAND[2].STARTSPEED > 0) then
+        if (XM.player.className == "SHAMAN") and (XM:TalentCheck("Dual Wield Specialization") ~= nil) and (XMSWING.HAND[2].STARTSPEED > 0) then
             hitpercent = hitpercent + 2*(XM:TalentCheck("Dual Wield Specialization"))
-        elseif (xm_PlayerClassName == "WARRIOR") and (XM:TalentCheck("Precision") ~= nil) then
+        elseif (XM.player.className == "WARRIOR") and (XM:TalentCheck("Precision") ~= nil) then
             hitpercent = hitpercent + XM:TalentCheck("Precision")
         end
 
@@ -471,7 +471,7 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMSWING:CreateSwingFrame()
 
-    local settings = XM_DB["XMSWING"]
+    local settings = XM.db["XMSWING"]
 
     --main swing frame
     if (not XM_SWINGFRAME) then
@@ -650,7 +650,7 @@ function XMSWING:SavePosition()
     movex = cursorx - movex
     movey = cursory - movey
 
-    XM_DB["XMSWING"]["SWINGFRAME"]["POSX"] = XM_DB["XMSWING"]["SWINGFRAME"]["POSX"] + movex
-    XM_DB["XMSWING"]["SWINGFRAME"]["POSY"] = XM_DB["XMSWING"]["SWINGFRAME"]["POSY"] + movey
+    XM.db["XMSWING"]["SWINGFRAME"]["POSX"] = XM.db["XMSWING"]["SWINGFRAME"]["POSX"] + movex
+    XM.db["XMSWING"]["SWINGFRAME"]["POSY"] = XM.db["XMSWING"]["SWINGFRAME"]["POSY"] + movey
 
 end

@@ -1,6 +1,6 @@
 --embedded Libs
 local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
 --local variables
 local playermove = false
@@ -26,14 +26,14 @@ function XMPLAYER:OnInitialize()
 --called when addon loads
 
     --initialize DB for new users
-    if (not XM_DB["XMPLAYER"]) then
-        XM_DB["XMPLAYER"] = {}
-        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Player Frame: "..UnitName("player").." - "..GetRealmName():trim())
+    if (not XM.db["XMPLAYER"]) then
+        XM.db["XMPLAYER"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Player Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
         local key, value
         for key, value in pairs(XMPLAYER.DEFAULTS) do
-            XM_DB["XMPLAYER"][key] = value
+            XM.db["XMPLAYER"][key] = value
         end
     end
 
@@ -47,7 +47,7 @@ function XMPLAYER:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     local i
@@ -117,9 +117,9 @@ function XMPLAYER:OnUpdate(elapsed)
     i = 1
     while (i <= 2) do
         if (playerhealthpercent == 1) then
-            if (playermanatype ~= 1 and playermanapercent == 1 and xm_InCombat == false and playermove == false) then
+            if (playermanatype ~= 1 and playermanapercent == 1 and XM.player.combatActive == false and playermove == false) then
                 playerframe[i]:Hide()
-            elseif (playermanapercent <= 0.01 and xm_InCombat == false and playermove == false) then
+            elseif (playermanapercent <= 0.01 and XM.player.combatActive == false and playermove == false) then
                 playerframe[i]:Hide()
             else
                 playerframe[i]:Show()
@@ -224,15 +224,15 @@ function XMPLAYER:UpdatePlayerBuffs()
 
                 XM_PLAYERFRAMEBUFF[i].timer = XM_PLAYERFRAMEBUFF[i]:CreateFontString("playerbuff"..i.."timer", "OVERLAY", "GameFontNormal")
                 XM_PLAYERFRAMEBUFF[i].timer:SetPoint("TOP", XM_PLAYERFRAMEBUFF[i], "BOTTOM")
-                XM_PLAYERFRAMEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERBUFFTIMEFONT"]), ((XM_PLAYERFRAME:GetHeight())/4))
-                XM_PLAYERFRAMEBUFF[i].timer:SetTextColor(XM_DB["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].r,XM_DB["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].g,XM_DB["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].b)
-                XM_PLAYERFRAMEBUFF[i].timer:SetAlpha(XM_DB["XMPLAYER"]["PLAYERBUFFTIMEALPHA"])
+                XM_PLAYERFRAMEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERBUFFTIMEFONT"]), ((XM_PLAYERFRAME:GetHeight())/4))
+                XM_PLAYERFRAMEBUFF[i].timer:SetTextColor(XM.db["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].r,XM.db["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].g,XM.db["XMPLAYER"]["PLAYERBUFFTIMECOLOR"].b)
+                XM_PLAYERFRAMEBUFF[i].timer:SetAlpha(XM.db["XMPLAYER"]["PLAYERBUFFTIMEALPHA"])
 
                 XM_PLAYERFRAMEBUFF[i].stack = XM_PLAYERFRAMEBUFF[i]:CreateFontString("playerbuff"..i.."stack", "OVERLAY", "GameFontNormal")
                 XM_PLAYERFRAMEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_PLAYERFRAMEBUFF[i], "BOTTOMRIGHT")
-                XM_PLAYERFRAMEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERBUFFSTACKFONT"]), (playersquare/2))
-                XM_PLAYERFRAMEBUFF[i].stack:SetTextColor(XM_DB["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].b)
-                XM_PLAYERFRAMEBUFF[i].stack:SetAlpha(XM_DB["XMPLAYER"]["PLAYERBUFFSTACKALPHA"])
+                XM_PLAYERFRAMEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERBUFFSTACKFONT"]), (playersquare/2))
+                XM_PLAYERFRAMEBUFF[i].stack:SetTextColor(XM.db["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].r,XM.db["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].g,XM.db["XMPLAYER"]["PLAYERBUFFSTACKCOLOR"].b)
+                XM_PLAYERFRAMEBUFF[i].stack:SetAlpha(XM.db["XMPLAYER"]["PLAYERBUFFSTACKALPHA"])
             end
 
             buffIcon = playerbufforder[i].buffIcon
@@ -343,15 +343,15 @@ function XMPLAYER:UpdatePlayerDebuffs()
 
                 XM_PLAYERFRAMEDEBUFF[i].timer = XM_PLAYERFRAMEDEBUFF[i]:CreateFontString("playerdebuff"..i.."timer", "OVERLAY", "GameFontNormal")
                 XM_PLAYERFRAMEDEBUFF[i].timer:SetPoint("TOP", XM_PLAYERFRAMEDEBUFF[i], "BOTTOM")
-                XM_PLAYERFRAMEDEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERDEBUFFTIMEFONT"]), ((XM_PLAYERFRAME:GetHeight())/4))
-                XM_PLAYERFRAMEDEBUFF[i].timer:SetTextColor(XM_DB["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].r,XM_DB["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].g,XM_DB["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].b)
-                XM_PLAYERFRAMEDEBUFF[i].timer:SetAlpha(XM_DB["XMPLAYER"]["PLAYERDEBUFFTIMEALPHA"])
+                XM_PLAYERFRAMEDEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERDEBUFFTIMEFONT"]), ((XM_PLAYERFRAME:GetHeight())/4))
+                XM_PLAYERFRAMEDEBUFF[i].timer:SetTextColor(XM.db["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].r,XM.db["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].g,XM.db["XMPLAYER"]["PLAYERDEBUFFTIMECOLOR"].b)
+                XM_PLAYERFRAMEDEBUFF[i].timer:SetAlpha(XM.db["XMPLAYER"]["PLAYERDEBUFFTIMEALPHA"])
 
                 XM_PLAYERFRAMEDEBUFF[i].stack = XM_PLAYERFRAMEDEBUFF[i]:CreateFontString("playerdebuff"..i.."stack", "OVERLAY", "GameFontNormal")
                 XM_PLAYERFRAMEDEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_PLAYERFRAMEDEBUFF[i], "BOTTOMRIGHT")
-                XM_PLAYERFRAMEDEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERDEBUFFSTACKFONT"]), (playersquare/2))
-                XM_PLAYERFRAMEDEBUFF[i].stack:SetTextColor(XM_DB["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].b)
-                XM_PLAYERFRAMEDEBUFF[i].stack:SetAlpha(XM_DB["XMPLAYER"]["PLAYERDEBUFFSTACKALPHA"])
+                XM_PLAYERFRAMEDEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERDEBUFFSTACKFONT"]), (playersquare/2))
+                XM_PLAYERFRAMEDEBUFF[i].stack:SetTextColor(XM.db["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].r,XM.db["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].g,XM.db["XMPLAYER"]["PLAYERDEBUFFSTACKCOLOR"].b)
+                XM_PLAYERFRAMEDEBUFF[i].stack:SetAlpha(XM.db["XMPLAYER"]["PLAYERDEBUFFSTACKALPHA"])
             end
 
             debuffIcon = playerdebufforder[i].debuffIcon
@@ -388,12 +388,12 @@ function XMPLAYER:CreatePlayerFrame()
     --main player frame
     if (not XM_PLAYERFRAME) then
         XM_PLAYERFRAME = CreateFrame("Frame", "XM Player Frame", UIParent)
-        XM_PLAYERFRAME:SetFrameStrata(XM_DB["XMPLAYER"]["PLAYERSTRATA"])
-        XM_PLAYERFRAME:SetPoint("TOP", UIParent, "CENTER", XM_DB["XMPLAYER"]["PLAYERBOTTOMX"], XM_DB["XMPLAYER"]["PLAYERBOTTOMY"])
-        XM_PLAYERFRAME:SetHeight((XM_DB["XMPLAYER"]["PLAYERHEIGHT"])*2)
-        XM_PLAYERFRAME:SetWidth(XM_DB["XMPLAYER"]["PLAYERWIDTH"])
-        XM_PLAYERFRAME:SetScale(XM_DB["XMPLAYER"]["PLAYERSCALE"])
-        XM_PLAYERFRAME:SetAlpha(XM_DB["XMPLAYER"]["PLAYERALPHA"])
+        XM_PLAYERFRAME:SetFrameStrata(XM.db["XMPLAYER"]["PLAYERSTRATA"])
+        XM_PLAYERFRAME:SetPoint("TOP", UIParent, "CENTER", XM.db["XMPLAYER"]["PLAYERBOTTOMX"], XM.db["XMPLAYER"]["PLAYERBOTTOMY"])
+        XM_PLAYERFRAME:SetHeight((XM.db["XMPLAYER"]["PLAYERHEIGHT"])*2)
+        XM_PLAYERFRAME:SetWidth(XM.db["XMPLAYER"]["PLAYERWIDTH"])
+        XM_PLAYERFRAME:SetScale(XM.db["XMPLAYER"]["PLAYERSCALE"])
+        XM_PLAYERFRAME:SetAlpha(XM.db["XMPLAYER"]["PLAYERALPHA"])
         XM_PLAYERFRAME:SetScript("OnUpdate", function() XMPLAYER:OnUpdate(arg1) end)
 
         --movable player frame
@@ -408,7 +408,7 @@ function XMPLAYER:CreatePlayerFrame()
     while (i <= PlayerBarCount) do
         if (not playerframe[i]) then
             playerframe[i] = CreateFrame("Frame", "XM Player Frame"..i, XM_PLAYERFRAME)
-            if (i == 1 and XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) or (i == 2 and XM_DB["XMPLAYER"]["PLAYERSWAP"] == 0) then
+            if (i == 1 and XM.db["XMPLAYER"]["PLAYERSWAP"] == 1) or (i == 2 and XM.db["XMPLAYER"]["PLAYERSWAP"] == 0) then
                 playerframe[i]:SetPoint("TOPLEFT", XM_PLAYERFRAME)
                 playerframe[i]:SetPoint("TOPRIGHT", XM_PLAYERFRAME)
             else
@@ -420,11 +420,11 @@ function XMPLAYER:CreatePlayerFrame()
             playerframe[i].texture = playerframe[i]:CreateTexture()
             playerframe[i].texture:SetAllPoints(playerframe[i])
             if (i == 1) then
-                playerframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMPLAYER"]["PLAYERMANABACKTEXTURE"]))
-                playerframe[i].texture:SetVertexColor(XM_DB["XMPLAYER"]["PLAYERMANABACKCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERMANABACKCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERMANABACKCOLOR"].b,XM_DB["XMPLAYER"]["PLAYERMANABACKALPHA"])
+                playerframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMPLAYER"]["PLAYERMANABACKTEXTURE"]))
+                playerframe[i].texture:SetVertexColor(XM.db["XMPLAYER"]["PLAYERMANABACKCOLOR"].r,XM.db["XMPLAYER"]["PLAYERMANABACKCOLOR"].g,XM.db["XMPLAYER"]["PLAYERMANABACKCOLOR"].b,XM.db["XMPLAYER"]["PLAYERMANABACKALPHA"])
             elseif (i == 2) then
-                playerframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMPLAYER"]["PLAYERHEALTHBACKTEXTURE"]))
-                playerframe[i].texture:SetVertexColor(XM_DB["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].b,XM_DB["XMPLAYER"]["PLAYERHEALTHBACKALPHA"])
+                playerframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMPLAYER"]["PLAYERHEALTHBACKTEXTURE"]))
+                playerframe[i].texture:SetVertexColor(XM.db["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].r,XM.db["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].g,XM.db["XMPLAYER"]["PLAYERHEALTHBACKCOLOR"].b,XM.db["XMPLAYER"]["PLAYERHEALTHBACKALPHA"])
             end
 
             playerframe[i].bar = CreateFrame("Frame", "playerframe"..i.."bar", playerframe[i])
@@ -435,9 +435,9 @@ function XMPLAYER:CreatePlayerFrame()
             playerframe[i].bar.texture = playerframe[i].bar:CreateTexture()
             playerframe[i].bar.texture:SetAllPoints(playerframe[i].bar)
             if (i == 1) then
-                playerframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar",XM_DB["XMPLAYER"]["PLAYERMANATEXTURE"]))
+                playerframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar",XM.db["XMPLAYER"]["PLAYERMANATEXTURE"]))
             elseif (i == 2) then
-                playerframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar",XM_DB["XMPLAYER"]["PLAYERHEALTHTEXTURE"]))
+                playerframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar",XM.db["XMPLAYER"]["PLAYERHEALTHTEXTURE"]))
             end
 
             playerframe[i].text = CreateFrame("Frame", "playerframe"..i.."text", playerframe[i])
@@ -449,38 +449,38 @@ function XMPLAYER:CreatePlayerFrame()
             playerframe[i].right = playerframe[i].text:CreateFontString("playerframe"..i.."right", "OVERLAY", "GameFontNormal")
             playerframe[i].right:SetPoint("RIGHT", playerframe[i].text)
             if (i == 1) then
-                playerframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERMANAMAXFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].right:SetTextColor(XM_DB["XMPLAYER"]["PLAYERMANAMAXCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERMANAMAXCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERMANAMAXCOLOR"].b)
-                playerframe[i].right:SetAlpha(XM_DB["XMPLAYER"]["PLAYERMANAMAXALPHA"])
+                playerframe[i].right:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERMANAMAXFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].right:SetTextColor(XM.db["XMPLAYER"]["PLAYERMANAMAXCOLOR"].r,XM.db["XMPLAYER"]["PLAYERMANAMAXCOLOR"].g,XM.db["XMPLAYER"]["PLAYERMANAMAXCOLOR"].b)
+                playerframe[i].right:SetAlpha(XM.db["XMPLAYER"]["PLAYERMANAMAXALPHA"])
             elseif (i == 2) then
-                playerframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERHEALTHMAXFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].right:SetTextColor(XM_DB["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].b)
-                playerframe[i].right:SetAlpha(XM_DB["XMPLAYER"]["PLAYERHEALTHMAXALPHA"])
+                playerframe[i].right:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERHEALTHMAXFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].right:SetTextColor(XM.db["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].r,XM.db["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].g,XM.db["XMPLAYER"]["PLAYERHEALTHMAXCOLOR"].b)
+                playerframe[i].right:SetAlpha(XM.db["XMPLAYER"]["PLAYERHEALTHMAXALPHA"])
             end
 
             playerframe[i].left = playerframe[i].text:CreateFontString("playerframe"..i.."left", "OVERLAY", "GameFontNormal")
             playerframe[i].left:SetPoint("LEFT", playerframe[i].text)
             if (i == 1) then
-                playerframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERMANALEFTFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].left:SetTextColor(XM_DB["XMPLAYER"]["PLAYERMANALEFTCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERMANALEFTCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERMANALEFTCOLOR"].b)
-                playerframe[i].left:SetAlpha(XM_DB["XMPLAYER"]["PLAYERMANALEFTALPHA"])
+                playerframe[i].left:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERMANALEFTFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].left:SetTextColor(XM.db["XMPLAYER"]["PLAYERMANALEFTCOLOR"].r,XM.db["XMPLAYER"]["PLAYERMANALEFTCOLOR"].g,XM.db["XMPLAYER"]["PLAYERMANALEFTCOLOR"].b)
+                playerframe[i].left:SetAlpha(XM.db["XMPLAYER"]["PLAYERMANALEFTALPHA"])
             elseif (i == 2) then
-                playerframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERHEALTHLEFTFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].left:SetTextColor(XM_DB["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].b)
-                playerframe[i].left:SetAlpha(XM_DB["XMPLAYER"]["PLAYERHEALTHLEFTALPHA"])
+                playerframe[i].left:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERHEALTHLEFTFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].left:SetTextColor(XM.db["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].r,XM.db["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].g,XM.db["XMPLAYER"]["PLAYERHEALTHLEFTCOLOR"].b)
+                playerframe[i].left:SetAlpha(XM.db["XMPLAYER"]["PLAYERHEALTHLEFTALPHA"])
             end
 
             playerframe[i].center = playerframe[i].text:CreateFontString("playerframe"..i.."center", "OVERLAY", "GameFontNormal")
             playerframe[i].center:SetPoint("CENTER", playerframe[i].text)
-            playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERMANAPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
+            playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERMANAPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
             if (i == 1) then
-                playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERMANAPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].center:SetTextColor(XM_DB["XMPLAYER"]["PLAYERMANAPERCCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERMANAPERCCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERMANAPERCCOLOR"].b)
-                playerframe[i].center:SetAlpha(XM_DB["XMPLAYER"]["PLAYERMANAPERCALPHA"])
+                playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERMANAPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].center:SetTextColor(XM.db["XMPLAYER"]["PLAYERMANAPERCCOLOR"].r,XM.db["XMPLAYER"]["PLAYERMANAPERCCOLOR"].g,XM.db["XMPLAYER"]["PLAYERMANAPERCCOLOR"].b)
+                playerframe[i].center:SetAlpha(XM.db["XMPLAYER"]["PLAYERMANAPERCALPHA"])
             elseif (i == 2) then
-                playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMPLAYER"]["PLAYERHEALTHPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
-                playerframe[i].center:SetTextColor(XM_DB["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].r,XM_DB["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].g,XM_DB["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].b)
-                playerframe[i].center:SetAlpha(XM_DB["XMPLAYER"]["PLAYERHEALTHPERCALPHA"])
+                playerframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMPLAYER"]["PLAYERHEALTHPERCFONT"]), (playerframe[i]:GetHeight())*0.85)
+                playerframe[i].center:SetTextColor(XM.db["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].r,XM.db["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].g,XM.db["XMPLAYER"]["PLAYERHEALTHPERCCOLOR"].b)
+                playerframe[i].center:SetAlpha(XM.db["XMPLAYER"]["PLAYERHEALTHPERCALPHA"])
             end
         end
         i = i + 1
@@ -517,7 +517,7 @@ function XMPLAYER:OnDragStop()
 
     XMPLAYER:SavePosition()
 
-    if (xm_InCombat == false) then
+    if (XM.player.combatActive == false) then
         if (XMPOTION) then
             XMPOTION:CreateSecurePotionFrame()
         end
@@ -533,7 +533,7 @@ function XMPLAYER:SavePosition()
     movex = cursorx - movex
     movey = cursory - movey
 
-    XM_DB["XMPLAYER"]["PLAYERBOTTOMX"] = XM_DB["XMPLAYER"]["PLAYERBOTTOMX"] + movex
-    XM_DB["XMPLAYER"]["PLAYERBOTTOMY"] = XM_DB["XMPLAYER"]["PLAYERBOTTOMY"] + movey
+    XM.db["XMPLAYER"]["PLAYERBOTTOMX"] = XM.db["XMPLAYER"]["PLAYERBOTTOMX"] + movex
+    XM.db["XMPLAYER"]["PLAYERBOTTOMY"] = XM.db["XMPLAYER"]["PLAYERBOTTOMY"] + movey
 
 end

@@ -1,6 +1,6 @@
 --embedded libs
 local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
 --local variables
 local targetmove = false
@@ -19,14 +19,14 @@ function XMTARGET:OnInitialize()
 --called when addon loads
 
     --initialize DB for new users
-    if (not XM_DB["XMTARGET"]) then
-        XM_DB["XMTARGET"] = {}
-        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Target Frame: "..UnitName("player").." - "..GetRealmName():trim())
+    if (not XM.db["XMTARGET"]) then
+        XM.db["XMTARGET"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Target Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
         local key, value
         for key, value in pairs(XMTARGET.DEFAULTS) do
-            XM_DB["XMTARGET"][key] = value
+            XM.db["XMTARGET"][key] = value
         end
     end
 
@@ -40,7 +40,7 @@ function XMTARGET:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     local i
@@ -237,15 +237,15 @@ function XMTARGET:UpdateTargetBuffs()
 
                 XM_TARGETFRAMEBUFF[i].timer = XM_TARGETFRAMEBUFF[i]:CreateFontString("targetbuff"..i.."timer", "OVERLAY", "GameFontNormal")
                 XM_TARGETFRAMEBUFF[i].timer:SetPoint("TOP", XM_TARGETFRAMEBUFF[i], "BOTTOM")
-                XM_TARGETFRAMEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
-                XM_TARGETFRAMEBUFF[i].timer:SetTextColor(XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].r,XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].g,XM_DB["XMTARGET"]["TARGETBUFFTIMECOLOR"].b)
-                XM_TARGETFRAMEBUFF[i].timer:SetAlpha(XM_DB["XMTARGET"]["TARGETBUFFTIMEALPHA"])
+                XM_TARGETFRAMEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
+                XM_TARGETFRAMEBUFF[i].timer:SetTextColor(XM.db["XMTARGET"]["TARGETBUFFTIMECOLOR"].r,XM.db["XMTARGET"]["TARGETBUFFTIMECOLOR"].g,XM.db["XMTARGET"]["TARGETBUFFTIMECOLOR"].b)
+                XM_TARGETFRAMEBUFF[i].timer:SetAlpha(XM.db["XMTARGET"]["TARGETBUFFTIMEALPHA"])
 
                 XM_TARGETFRAMEBUFF[i].stack = XM_TARGETFRAMEBUFF[i]:CreateFontString("targetbuff"..i.."stack", "OVERLAY", "GameFontNormal")
                 XM_TARGETFRAMEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_TARGETFRAMEBUFF[i], "BOTTOMRIGHT")
-                XM_TARGETFRAMEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETBUFFSTACKFONT"]), (targetsquare/2))
-                XM_TARGETFRAMEBUFF[i].stack:SetTextColor(XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETBUFFSTACKCOLOR"].b)
-                XM_TARGETFRAMEBUFF[i].stack:SetAlpha(XM_DB["XMTARGET"]["TARGETBUFFSTACKALPHA"])
+                XM_TARGETFRAMEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETBUFFSTACKFONT"]), (targetsquare/2))
+                XM_TARGETFRAMEBUFF[i].stack:SetTextColor(XM.db["XMTARGET"]["TARGETBUFFSTACKCOLOR"].r,XM.db["XMTARGET"]["TARGETBUFFSTACKCOLOR"].g,XM.db["XMTARGET"]["TARGETBUFFSTACKCOLOR"].b)
+                XM_TARGETFRAMEBUFF[i].stack:SetAlpha(XM.db["XMTARGET"]["TARGETBUFFSTACKALPHA"])
             end
 
             buffIcon = targetbufforder[i].buffIcon
@@ -354,15 +354,15 @@ function XMTARGET:UpdateTargetDebuffs()
 
                 XM_TARGETFRAMEDEBUFF[i].timer = XM_TARGETFRAMEDEBUFF[i]:CreateFontString("playerdebuff"..i.."timer", "OVERLAY", "GameFontNormal")
                 XM_TARGETFRAMEDEBUFF[i].timer:SetPoint("TOP", XM_TARGETFRAMEDEBUFF[i], "BOTTOM")
-                XM_TARGETFRAMEDEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETDEBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
-                XM_TARGETFRAMEDEBUFF[i].timer:SetTextColor(XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].r,XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].g,XM_DB["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].b)
-                XM_TARGETFRAMEDEBUFF[i].timer:SetAlpha(XM_DB["XMTARGET"]["TARGETDEBUFFTIMEALPHA"])
+                XM_TARGETFRAMEDEBUFF[i].timer:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETDEBUFFTIMEFONT"]), (XM_TARGETFRAME:GetHeight())/6)
+                XM_TARGETFRAMEDEBUFF[i].timer:SetTextColor(XM.db["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].r,XM.db["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].g,XM.db["XMTARGET"]["TARGETDEBUFFTIMECOLOR"].b)
+                XM_TARGETFRAMEDEBUFF[i].timer:SetAlpha(XM.db["XMTARGET"]["TARGETDEBUFFTIMEALPHA"])
 
                 XM_TARGETFRAMEDEBUFF[i].stack = XM_TARGETFRAMEDEBUFF[i]:CreateFontString("targetdebuff"..i.."stack", "OVERLAY", "GameFontNormal")
                 XM_TARGETFRAMEDEBUFF[i].stack:SetPoint("BOTTOMRIGHT", XM_TARGETFRAMEDEBUFF[i], "BOTTOMRIGHT")
-                XM_TARGETFRAMEDEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETDEBUFFSTACKFONT"]), (targetsquare/2))
-                XM_TARGETFRAMEDEBUFF[i].stack:SetTextColor(XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].b)
-                XM_TARGETFRAMEDEBUFF[i].stack:SetAlpha(XM_DB["XMTARGET"]["TARGETDEBUFFSTACKALPHA"])
+                XM_TARGETFRAMEDEBUFF[i].stack:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETDEBUFFSTACKFONT"]), (targetsquare/2))
+                XM_TARGETFRAMEDEBUFF[i].stack:SetTextColor(XM.db["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].r,XM.db["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].g,XM.db["XMTARGET"]["TARGETDEBUFFSTACKCOLOR"].b)
+                XM_TARGETFRAMEDEBUFF[i].stack:SetAlpha(XM.db["XMTARGET"]["TARGETDEBUFFSTACKALPHA"])
             end
 
             debuffIcon = targetdebufforder[i].debuffIcon
@@ -398,12 +398,12 @@ function XMTARGET:CreateTargetFrame()
     --main target frame
     if (not XM_TARGETFRAME) then
         XM_TARGETFRAME = CreateFrame("Frame", "XM Target Frame", UIParent)
-        XM_TARGETFRAME:SetFrameStrata(XM_DB["XMTARGET"]["TARGETSTRATA"])
-        XM_TARGETFRAME:SetPoint("TOP", UIParent, "CENTER", XM_DB["XMTARGET"]["TARGETBOTTOMX"], XM_DB["XMTARGET"]["TARGETBOTTOMY"])
-        XM_TARGETFRAME:SetHeight((XM_DB["XMTARGET"]["TARGETHEIGHT"])*3)
-        XM_TARGETFRAME:SetWidth(XM_DB["XMTARGET"]["TARGETWIDTH"])
-        XM_TARGETFRAME:SetScale(XM_DB["XMTARGET"]["TARGETSCALE"])
-        XM_TARGETFRAME:SetAlpha(XM_DB["XMTARGET"]["TARGETALPHA"])
+        XM_TARGETFRAME:SetFrameStrata(XM.db["XMTARGET"]["TARGETSTRATA"])
+        XM_TARGETFRAME:SetPoint("TOP", UIParent, "CENTER", XM.db["XMTARGET"]["TARGETBOTTOMX"], XM.db["XMTARGET"]["TARGETBOTTOMY"])
+        XM_TARGETFRAME:SetHeight((XM.db["XMTARGET"]["TARGETHEIGHT"])*3)
+        XM_TARGETFRAME:SetWidth(XM.db["XMTARGET"]["TARGETWIDTH"])
+        XM_TARGETFRAME:SetScale(XM.db["XMTARGET"]["TARGETSCALE"])
+        XM_TARGETFRAME:SetAlpha(XM.db["XMTARGET"]["TARGETALPHA"])
         XM_TARGETFRAME:SetScript("OnUpdate", function() XMTARGET:OnUpdate(arg1) end)
 
         --movable target frame
@@ -435,14 +435,14 @@ function XMTARGET:CreateTargetFrame()
             targetframe[i].texture = targetframe[i]:CreateTexture()
             targetframe[i].texture:SetAllPoints(targetframe[i])
             if (i == 1) then
-                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETMANABACKTEXTURE"]))
-                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANABACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETMANABACKALPHA"])
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETMANABACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM.db["XMTARGET"]["TARGETMANABACKCOLOR"].r,XM.db["XMTARGET"]["TARGETMANABACKCOLOR"].g,XM.db["XMTARGET"]["TARGETMANABACKCOLOR"].b,XM.db["XMTARGET"]["TARGETMANABACKALPHA"])
             elseif (i == 2) then
-                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETHEALTHBACKTEXTURE"]))
-                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHBACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETHEALTHBACKALPHA"])
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETHEALTHBACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM.db["XMTARGET"]["TARGETHEALTHBACKCOLOR"].r,XM.db["XMTARGET"]["TARGETHEALTHBACKCOLOR"].g,XM.db["XMTARGET"]["TARGETHEALTHBACKCOLOR"].b,XM.db["XMTARGET"]["TARGETHEALTHBACKALPHA"])
             elseif (i == 3) then
-                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETNAMEBACKTEXTURE"]))
-                targetframe[i].texture:SetVertexColor(XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMEBACKCOLOR"].b,XM_DB["XMTARGET"]["TARGETMANABACKALPHA"])
+                targetframe[i].texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETNAMEBACKTEXTURE"]))
+                targetframe[i].texture:SetVertexColor(XM.db["XMTARGET"]["TARGETNAMEBACKCOLOR"].r,XM.db["XMTARGET"]["TARGETNAMEBACKCOLOR"].g,XM.db["XMTARGET"]["TARGETNAMEBACKCOLOR"].b,XM.db["XMTARGET"]["TARGETMANABACKALPHA"])
             end
 
             targetframe[i].bar = CreateFrame("Frame", "targetframe"..i.."bar", targetframe[i])
@@ -457,11 +457,11 @@ function XMTARGET:CreateTargetFrame()
             targetframe[i].bar.texture = targetframe[i].bar:CreateTexture()
             targetframe[i].bar.texture:SetAllPoints(targetframe[i].bar)
             if (i == 1) then
-                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETMANATEXTURE"]))
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETMANATEXTURE"]))
             elseif (i == 2) then
-                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETHEALTHTEXTURE"]))
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETHEALTHTEXTURE"]))
             elseif (i == 3) then
-                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM_DB["XMTARGET"]["TARGETNAMETEXTURE"]))
+                targetframe[i].bar.texture:SetTexture(XM_SMedia:Fetch("statusbar", XM.db["XMTARGET"]["TARGETNAMETEXTURE"]))
             end
 
             targetframe[i].text = CreateFrame("Frame", "targetframe"..i.."text", targetframe[i])
@@ -477,17 +477,17 @@ function XMTARGET:CreateTargetFrame()
                 targetframe[i].right:SetPoint("TOPRIGHT", targetframe[i].text, "BOTTOMRIGHT")
             end
             if (i == 1) then
-                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANAMAXFONT"]), 10)
-                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANAMAXCOLOR"].b)
-                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETMANAMAXALPHA"])
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETMANAMAXFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM.db["XMTARGET"]["TARGETMANAMAXCOLOR"].r,XM.db["XMTARGET"]["TARGETMANAMAXCOLOR"].g,XM.db["XMTARGET"]["TARGETMANAMAXCOLOR"].b)
+                targetframe[i].right:SetAlpha(XM.db["XMTARGET"]["TARGETMANAMAXALPHA"])
             elseif (i == 2) then
-                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHMAXFONT"]), 10)
-                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHMAXCOLOR"].b)
-                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHMAXALPHA"])
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETHEALTHMAXFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM.db["XMTARGET"]["TARGETHEALTHMAXCOLOR"].r,XM.db["XMTARGET"]["TARGETHEALTHMAXCOLOR"].g,XM.db["XMTARGET"]["TARGETHEALTHMAXCOLOR"].b)
+                targetframe[i].right:SetAlpha(XM.db["XMTARGET"]["TARGETHEALTHMAXALPHA"])
             elseif (i == 3) then
-                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMETYPEFONT"]), 10)
-                targetframe[i].right:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMETYPECOLOR"].b)
-                targetframe[i].right:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMETYPEALPHA"])
+                targetframe[i].right:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETNAMETYPEFONT"]), 10)
+                targetframe[i].right:SetTextColor(XM.db["XMTARGET"]["TARGETNAMETYPECOLOR"].r,XM.db["XMTARGET"]["TARGETNAMETYPECOLOR"].g,XM.db["XMTARGET"]["TARGETNAMETYPECOLOR"].b)
+                targetframe[i].right:SetAlpha(XM.db["XMTARGET"]["TARGETNAMETYPEALPHA"])
             end
 
             targetframe[i].left = targetframe[i].text:CreateFontString("targetframe"..i.."left", "OVERLAY", "GameFontNormal")
@@ -497,41 +497,41 @@ function XMTARGET:CreateTargetFrame()
                 targetframe[i].left:SetPoint("TOPLEFT", targetframe[i].text, "BOTTOMLEFT")
             end
             if (i == 1) then
-                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANALEFTFONT"]), 10)
-                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANALEFTCOLOR"].b)
-                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETMANALEFTALPHA"])
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETMANALEFTFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM.db["XMTARGET"]["TARGETMANALEFTCOLOR"].r,XM.db["XMTARGET"]["TARGETMANALEFTCOLOR"].g,XM.db["XMTARGET"]["TARGETMANALEFTCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM.db["XMTARGET"]["TARGETMANALEFTALPHA"])
             elseif (i == 2) then
-                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHLEFTFONT"]), 10)
-                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].b)
-                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHLEFTALPHA"])
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETHEALTHLEFTFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM.db["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].r,XM.db["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].g,XM.db["XMTARGET"]["TARGETHEALTHLEFTCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM.db["XMTARGET"]["TARGETHEALTHLEFTALPHA"])
             elseif (i == 3) then
-                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMECLASSFONT"]), 10)
-                targetframe[i].left:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMECLASSCOLOR"].b)
-                targetframe[i].left:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMECLASSALPHA"])
+                targetframe[i].left:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETNAMECLASSFONT"]), 10)
+                targetframe[i].left:SetTextColor(XM.db["XMTARGET"]["TARGETNAMECLASSCOLOR"].r,XM.db["XMTARGET"]["TARGETNAMECLASSCOLOR"].g,XM.db["XMTARGET"]["TARGETNAMECLASSCOLOR"].b)
+                targetframe[i].left:SetAlpha(XM.db["XMTARGET"]["TARGETNAMECLASSALPHA"])
             end
 
             targetframe[i].center = targetframe[i].text:CreateFontString("targetframe"..i.."center", "OVERLAY", "GameFontNormal")
             targetframe[i].center:SetPoint("CENTER", targetframe[i].text)
             if (i == 1) then
-                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETMANAPERCFONT"]), 10)
-                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].r,XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].g,XM_DB["XMTARGET"]["TARGETMANAPERCCOLOR"].b)
-                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETMANAPERCALPHA"])
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETMANAPERCFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM.db["XMTARGET"]["TARGETMANAPERCCOLOR"].r,XM.db["XMTARGET"]["TARGETMANAPERCCOLOR"].g,XM.db["XMTARGET"]["TARGETMANAPERCCOLOR"].b)
+                targetframe[i].center:SetAlpha(XM.db["XMTARGET"]["TARGETMANAPERCALPHA"])
             elseif (i == 2) then
-                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETHEALTHPERCFONT"]), 10)
-                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].r,XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].g,XM_DB["XMTARGET"]["TARGETHEALTHPERCCOLOR"].b)
-                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETHEALTHPERCALPHA"])
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETHEALTHPERCFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM.db["XMTARGET"]["TARGETHEALTHPERCCOLOR"].r,XM.db["XMTARGET"]["TARGETHEALTHPERCCOLOR"].g,XM.db["XMTARGET"]["TARGETHEALTHPERCCOLOR"].b)
+                targetframe[i].center:SetAlpha(XM.db["XMTARGET"]["TARGETHEALTHPERCALPHA"])
             elseif (i == 3) then
-                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMENAMEFONT"]), 10)
-                targetframe[i].center:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMENAMECOLOR"].b)
-                targetframe[i].center:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMENAMEALPHA"])
+                targetframe[i].center:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETNAMENAMEFONT"]), 10)
+                targetframe[i].center:SetTextColor(XM.db["XMTARGET"]["TARGETNAMENAMECOLOR"].r,XM.db["XMTARGET"]["TARGETNAMENAMECOLOR"].g,XM.db["XMTARGET"]["TARGETNAMENAMECOLOR"].b)
+                targetframe[i].center:SetAlpha(XM.db["XMTARGET"]["TARGETNAMENAMEALPHA"])
             end
 
             if (i == 3) then
                 targetframe[i].leftleft = targetframe[i].text:CreateFontString("targetframe"..i.."leftleft", "OVERLAY", "GameFontNormal")
                 targetframe[i].leftleft:SetPoint("TOPRIGHT", targetframe[i].text, "BOTTOMLEFT")
-                targetframe[i].leftleft:SetFont(XM_SMedia:Fetch("font",XM_DB["XMTARGET"]["TARGETNAMELEVELFONT"]), 10)
-                targetframe[i].leftleft:SetTextColor(XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].r,XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].g,XM_DB["XMTARGET"]["TARGETNAMELEVELCOLOR"].b)
-                targetframe[i].leftleft:SetAlpha(XM_DB["XMTARGET"]["TARGETNAMELEVELALPHA"])
+                targetframe[i].leftleft:SetFont(XM_SMedia:Fetch("font",XM.db["XMTARGET"]["TARGETNAMELEVELFONT"]), 10)
+                targetframe[i].leftleft:SetTextColor(XM.db["XMTARGET"]["TARGETNAMELEVELCOLOR"].r,XM.db["XMTARGET"]["TARGETNAMELEVELCOLOR"].g,XM.db["XMTARGET"]["TARGETNAMELEVELCOLOR"].b)
+                targetframe[i].leftleft:SetAlpha(XM.db["XMTARGET"]["TARGETNAMELEVELALPHA"])
             end
         end
         i = i + 1
@@ -576,7 +576,7 @@ function XMTARGET:SavePosition()
     movex = cursorx - movex
     movey = cursory - movey
 
-    XM_DB["XMTARGET"]["TARGETBOTTOMX"] = XM_DB["XMTARGET"]["TARGETBOTTOMX"] + movex
-    XM_DB["XMTARGET"]["TARGETBOTTOMY"] = XM_DB["XMTARGET"]["TARGETBOTTOMY"] + movey
+    XM.db["XMTARGET"]["TARGETBOTTOMX"] = XM.db["XMTARGET"]["TARGETBOTTOMX"] + movex
+    XM.db["XMTARGET"]["TARGETBOTTOMY"] = XM.db["XMTARGET"]["TARGETBOTTOMY"] + movey
 
 end

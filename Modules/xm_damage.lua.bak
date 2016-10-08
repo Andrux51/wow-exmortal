@@ -1,6 +1,6 @@
 --embedded libs
 local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
 --local variables
 local groupcombat = false
@@ -65,14 +65,14 @@ function XMDAMAGE:OnInitialize()
 --called when addon loads
 
     --initialize DB for new users
-    if (not XM_DB["XMDAMAGE"]) then
-        XM_DB["XMDAMAGE"] = {}
-        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Damage Frame: "..UnitName("player").." - "..GetRealmName():trim())
+    if (not XM.db["XMDAMAGE"]) then
+        XM.db["XMDAMAGE"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Damage Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
         local key, value
         for key, value in pairs(XMDAMAGE.DEFAULTS) do
-            XM_DB["XMDAMAGE"][key] = value
+            XM.db["XMDAMAGE"][key] = value
         end
     end
 
@@ -95,14 +95,14 @@ function XMDAMAGE:OnUpdate(elapsed)
     local fightcount = #damageouttable
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     if (fightcount >= 1) and (damageframe_hist[2].text:GetText() == ("%.0f"):format(fightcount)) then
 
         --watch for player to leave combat
         if (playercombat == true) then
-            if (xm_InCombat == false) then 
+            if (XM.player.combatActive == false) then 
                 playercombat = false
             end
             if (playercombat == false) and (groupcombat == false) then
@@ -321,7 +321,7 @@ function XMDAMAGE:DamageOut(timestamp, event, sourceid, source, victimid, victim
 
             --check if player is already in combat
             if (playercombat == false) then
-                if (xm_InCombat == true) then
+                if (XM.player.combatActive == true) then
                     playercombat = true
                 end
             end
@@ -332,7 +332,7 @@ function XMDAMAGE:DamageOut(timestamp, event, sourceid, source, victimid, victim
                 elseif (strfind(event,"PET")) then  --some pet damage / vehicles dont put you in combat
                 else
                     playercombat = true
-                    xm_InCombat = true
+                    XM.player.combatActive = true
                 end
             end
 
@@ -486,10 +486,10 @@ function XMDAMAGE:DamageOutCalculate(fightkey, sourcekey, timestamp, event, vict
     if (amount > xm_dmgmax[fightkey][sourcekey].AMT) then
         local rgbcolor = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}
 
-        if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
-            rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
-        elseif (XM_DB["COLOR_TABLE"][event]) then
-            rgbcolor = XM_DB["COLOR_TABLE"][event]
+        if (element) and (XM.db["COLOR_SPELL"][(strupper(element))]) then
+            rgbcolor = XM.db["COLOR_SPELL"][(strupper(element))]
+        elseif (XM.db["COLOR_TABLE"][event]) then
+            rgbcolor = XM.db["COLOR_TABLE"][event]
         end
         xm_dmgmax[fightkey][sourcekey] = {AMT = amount, R = rgbcolor.r, G = rgbcolor.g, B = rgbcolor.b, A = rgbcolor.a}
     end
@@ -554,17 +554,17 @@ function XMDAMAGE:DamageGraphUpdate(inpfight, inpsource)
             local element = damageouttable[inpfight][inpsource][i].ELEM
             local event = damageouttable[inpfight][inpsource][i].EVENT
 
-            if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
-                rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
-            elseif (XM_DB["COLOR_TABLE"][event]) then
-                rgbcolor = XM_DB["COLOR_TABLE"][event]
+            if (element) and (XM.db["COLOR_SPELL"][(strupper(element))]) then
+                rgbcolor = XM.db["COLOR_SPELL"][(strupper(element))]
+            elseif (XM.db["COLOR_TABLE"][event]) then
+                rgbcolor = XM.db["COLOR_TABLE"][event]
             end
 
             local statusamt = damageouttable[inpfight][inpsource][i].AMT
             if (statusamt == nil or statusamt < 1) then 
                 statusamt = strsub(damageouttable[inpfight][inpsource][i].EVENT, 1, strlen(damageouttable[inpfight][inpsource][i].EVENT) - 3)
             elseif (damageouttable[inpfight][inpsource][i].CRIT) then 
-                statusamt = XM_DB["CRITCHAR"]..damageouttable[inpfight][inpsource][i].AMT..XM_DB["CRITCHAR"] 
+                statusamt = XM.db["CRITCHAR"]..damageouttable[inpfight][inpsource][i].AMT..XM.db["CRITCHAR"] 
             end
 
             local statusspell = damageouttable[inpfight][inpsource][i].SPELL
@@ -723,17 +723,17 @@ function XMDAMAGE:DamageGraphUpdate(inpfight, inpsource)
                 local element = damageouttable[i][inpsource][j].ELEM
                 local event = damageouttable[i][inpsource][j].EVENT
 
-                if (element) and (XM_DB["COLOR_SPELL"][(strupper(element))]) then
-                    rgbcolor = XM_DB["COLOR_SPELL"][(strupper(element))]
-                elseif (XM_DB["COLOR_TABLE"][event]) then
-                    rgbcolor = XM_DB["COLOR_TABLE"][event]
+                if (element) and (XM.db["COLOR_SPELL"][(strupper(element))]) then
+                    rgbcolor = XM.db["COLOR_SPELL"][(strupper(element))]
+                elseif (XM.db["COLOR_TABLE"][event]) then
+                    rgbcolor = XM.db["COLOR_TABLE"][event]
                 end
 
                 local statusamt = damageouttable[i][inpsource][j].AMT
                 if (statusamt == nil or statusamt < 1) then 
                     statusamt = strsub(damageouttable[i][inpsource][j].EVENT, 1, strlen(damageouttable[i][inpsource][j].EVENT) - 3)
                 elseif (damageouttable[i][inpsource][j].CRIT) then 
-                    statusamt = XM_DB["CRITCHAR"]..damageouttable[i][inpsource][j].AMT..XM_DB["CRITCHAR"] 
+                    statusamt = XM.db["CRITCHAR"]..damageouttable[i][inpsource][j].AMT..XM.db["CRITCHAR"] 
                 end
 
                 local statusspell = damageouttable[i][inpsource][j].SPELL
@@ -843,7 +843,7 @@ function XMDAMAGE:DamageBarUpdate(inpfight)
 
             if (not damageframe_srctable[i]) then
                 damageframe_srctable[i] = XM_DAMAGEFRAME:CreateFontString("damageframe_srctable"..i, "OVERLAY", "GameFontNormal")
-                damageframe_srctable[i]:SetFont(XM_SMedia:Fetch("font",XM_DB["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM_DB["XMDAMAGE"]["MISSTEXT"]["SIZE"])
+                damageframe_srctable[i]:SetFont(XM_SMedia:Fetch("font",XM.db["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM.db["XMDAMAGE"]["MISSTEXT"]["SIZE"])
                 damageframe_srctable[i]:SetTextColor(1,1,1,1)
             end
             damageframe_srctable[i]:ClearAllPoints()
@@ -863,7 +863,7 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMDAMAGE:CreateDamageFrame()
 
-    local settings = XM_DB["XMDAMAGE"]
+    local settings = XM.db["XMDAMAGE"]
 
     --main damage frame
     if (not XM_DAMAGEFRAME) then
@@ -898,7 +898,7 @@ function XMDAMAGE:CreateDamageFrame()
         damageframe_fighttime = XM_DAMAGEFRAME:CreateFontString("damageframe_fighttime", "OVERLAY", "GameFontNormal")
         damageframe_fighttime:SetPoint("BOTTOM", damageframe_src, "TOP")
     end
-    damageframe_fighttime:SetFont(XM_SMedia:Fetch("font",XM_DB["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM_DB["XMDAMAGE"]["MISSTEXT"]["SIZE"])
+    damageframe_fighttime:SetFont(XM_SMedia:Fetch("font",XM.db["XMDAMAGE"]["MISSTEXT"]["FONT"]), XM.db["XMDAMAGE"]["MISSTEXT"]["SIZE"])
     damageframe_fighttime:SetText("")
     damageframe_fighttime:SetTextColor(1,1,1,1)
 

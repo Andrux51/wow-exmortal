@@ -99,7 +99,7 @@ end
 function XMSHIELD:OnUpdate(elapsed)
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
     XMSHIELD:ShieldAnimate((elapsed)*shieldspeed)
 

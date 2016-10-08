@@ -1,6 +1,6 @@
 --embedded Libs
 local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
 --local variables
 
@@ -135,23 +135,23 @@ function XMPOTION:OnInitialize()
 --called when addon loads
 
     --initialize DB for new users
-    if (not XM_DB["XMPOTION"]) then
-        XM_DB["XMPOTION"] = {}
-        DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Potion Frame: "..UnitName("player").." - "..GetRealmName():trim())
+    if (not XM.db["XMPOTION"]) then
+        XM.db["XMPOTION"] = {}
+        DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Potion Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
         local key, value
         for key, value in pairs(XMPOTION.DEFAULTS) do
-            XM_DB["XMPOTION"][key] = value
+            XM.db["XMPOTION"][key] = value
         end
     end
 
-    HealthButtonKey = XM_DB["XMPOTION"]["HEALTHBUTTONKEY"]
-    ManaButtonKey = XM_DB["XMPOTION"]["MANABUTTONKEY"]
-    HSButtonKey = XM_DB["XMPOTION"]["HSBUTTONKEY"]
-    HPotButtonKey = XM_DB["XMPOTION"]["HPOTBUTTONKEY"]
-    MSButtonKey = XM_DB["XMPOTION"]["MSBUTTONKEY"]
-    MPotButtonKey = XM_DB["XMPOTION"]["MPOTBUTTONKEY"]
+    HealthButtonKey = XM.db["XMPOTION"]["HEALTHBUTTONKEY"]
+    ManaButtonKey = XM.db["XMPOTION"]["MANABUTTONKEY"]
+    HSButtonKey = XM.db["XMPOTION"]["HSBUTTONKEY"]
+    HPotButtonKey = XM.db["XMPOTION"]["HPOTBUTTONKEY"]
+    MSButtonKey = XM.db["XMPOTION"]["MSBUTTONKEY"]
+    MPotButtonKey = XM.db["XMPOTION"]["MPOTBUTTONKEY"]
 
     local h = 1
     while (h <= ButtonType) do
@@ -173,7 +173,7 @@ function XMPOTION:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     if (XMPLAYER) then
@@ -259,14 +259,14 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMPOTION:CreateSecurePotionFrame()
 
-    if (XMPLAYER) and (xm_InCombat == false) then
+    if (XMPLAYER) and (XM.player.combatActive == false) then
 
     --main potion frame
     if (not XM_POTIONFRAME) then
         XM_POTIONFRAME = CreateFrame("Frame", "XM Potion Frame", UIParent)
         XM_POTIONFRAME:SetAllPoints(UIParent)
     end
-    XM_POTIONFRAME:SetFrameStrata(XM_DB["XMPLAYER"]["PLAYERSTRATA"])
+    XM_POTIONFRAME:SetFrameStrata(XM.db["XMPLAYER"]["PLAYERSTRATA"])
     XM_POTIONFRAME:SetScript("OnUpdate", function() XMPOTION:OnUpdate(arg1) end)
 
     local h,i,j
@@ -297,7 +297,7 @@ function XMPOTION:CreateSecurePotionFrame()
                     ButtonCount[h] = ButtonCount[h] + 1
                     if (not ItemButton[h][ButtonCount[h]]) then
                         ItemButton[h][ButtonCount[h]] = CreateFrame("Button", "ItemButton"..h.."-"..ButtonCount[h], XM_POTIONFRAME, "SecureActionButtonTemplate")
-                        ItemButton[h][ButtonCount[h]]:SetFrameStrata(XM_DB["XMPLAYER"]["PLAYERSTRATA"])
+                        ItemButton[h][ButtonCount[h]]:SetFrameStrata(XM.db["XMPLAYER"]["PLAYERSTRATA"])
 
                         ItemButton[h][ButtonCount[h]]:SetHeight(ButtonSquare)
                         ItemButton[h][ButtonCount[h]]:SetWidth(ButtonSquare)
@@ -330,38 +330,38 @@ function XMPOTION:CreateSecurePotionFrame()
                     ItemButton[h][ButtonCount[h]]:ClearAllPoints()
                     if (h == 1) then
                         calcx = -1 * (ButtonSquare + (ButtonSquare/3))
-                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
-                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                        if (XM.db["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = -1 * (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
                         else
-                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            calcy = (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
                         end
                     elseif (h == 2) then
                         calcx = -1 * (ButtonSquare + (ButtonSquare/3))
-                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
-                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                        if (XM.db["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
                         else
-                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            calcy = -1 * (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
                         end
                     elseif (h == 3) then
                         calcx = -1 * (2*ButtonSquare + (ButtonSquare/3))
-                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
-                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                        if (XM.db["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = -1 * (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
                         else
-                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            calcy = (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
                         end
                     elseif (h == 4) then
                         calcx = -1 * (2*ButtonSquare + (ButtonSquare/3))
-                        if (XM_DB["XMPLAYER"]["PLAYERSWAP"] == 1) then
-                            calcy = (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                        if (XM.db["XMPLAYER"]["PLAYERSWAP"] == 1) then
+                            calcy = (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("BOTTOMLEFT", XM_PLAYERFRAME, "BOTTOMLEFT", calcx, calcy)
                         else
-                            calcy = -1 * (XM_DB["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
+                            calcy = -1 * (XM.db["XMPLAYER"]["PLAYERHEIGHT"] + (ButtonSquare * (ButtonCount[h] - 1)))
                             ItemButton[h][ButtonCount[h]]:SetPoint("TOPLEFT", XM_PLAYERFRAME, "TOPLEFT", calcx, calcy)
                         end
                     end
@@ -422,7 +422,7 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMPOTION:UNIT_INVENTORY_CHANGED(_,unit)
 
-    if (xm_InCombat == false and unit == "player") then
+    if (XM.player.combatActive == false and unit == "player") then
         XMPOTION:CreateSecurePotionFrame()
     end
 
