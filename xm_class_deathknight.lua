@@ -1,4 +1,4 @@
---MUST HAVE "xm_init.lua" LOADED FIRST
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
 --deathknight local variables
 local SpellActive = false
@@ -54,7 +54,6 @@ function XM:MISSOUT_DEATHKNIGHT(event, source, victim, skill, misstype)
         [6] = "Heart Strike",
     }
 
-    local key, value    
     for key, value in pairs(skillarray) do
         if (value == skill) then
             XM:Display_Event("EXECUTE", skill, true, nil, source, source, nil)
@@ -81,7 +80,7 @@ function XM:BUFFFADE_DEATHKNIGHT(event, source, victim, skill)
 
     if SpellActive then
         if (skill == SpellActive) then
-           XM:AniInitFrame(XM_DB["SPELLACTIVE"])
+           XM:AniInitFrame(XM.db["SPELLACTIVE"])
            HasSpellActive = false
         end
     end

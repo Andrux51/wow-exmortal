@@ -83,7 +83,6 @@ function XMSWING:OnInitialize()
         DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Swing Frame: "..UnitName("player").." - "..GetRealmName():trim())
         XM.db["XMSWING"] = {}
         --write default values to the current profile (too bad they can't be sorted)
-        local key, value
         for key, value in pairs(XMSWING.DEFAULTS) do
             XM.db["XMSWING"][key] = value
         end
@@ -300,7 +299,6 @@ function XMSWING:COMBAT_LOG_EVENT_UNFILTERED(_,timestamp, event, srcGUID, srcNam
     if (srcGUID == UnitGUID("player") and (event == "SPELL_DAMAGE" or event == "SPELL_MISSED")) then
         --check if spell resets swing
         local handstart = 0
-        local key, value
         for key, value in pairs(xm_SwingReset) do
            if (key == two) then
                 handstart = value
@@ -431,13 +429,13 @@ function XMSWING:OnUpdate(elapsed)
         while (i <= 40) do
             buffName,buffRank,buffIcon,buffCount,buffType,buffDuration,buffLeft,_,_ = UnitBuff("player", i)
             if (buffName) then
-                if (buffName == "Heroic Presence") then 
+                if (buffName == "Heroic Presence") then
                     hitpercent = hitpercent + 1
                     i = 41
                 end
                 i = i + 1
             else
-                i = 41 
+                i = 41
             end
         end
 
@@ -510,7 +508,7 @@ function XMSWING:CreateSwingFrame()
         end
         swingframe[i]:SetHeight((XM_SWINGFRAME:GetHeight())/3)
         swingframe[i]:SetWidth(XM_SWINGFRAME:GetWidth())
-       
+
         if (not swingframe[i].texture) then
             swingframe[i].texture = swingframe[i]:CreateTexture()
             swingframe[i].texture:SetAllPoints(swingframe[i])
@@ -547,7 +545,7 @@ function XMSWING:CreateSwingFrame()
         end
         swingframe[i].swingbar.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["SWINGTEXTURE"]))
         swingframe[i].swingbar.texture:SetVertexColor(settings["SWINGHAND"..i]["SWINGCOLOR"].r,settings["SWINGHAND"..i]["SWINGCOLOR"].g,settings["SWINGHAND"..i]["SWINGCOLOR"].b,settings["SWINGHAND"..i]["SWINGCOLOR"].a)
-    
+
         if (not swingframe[i].timebar) then
             swingframe[i].timebar = CreateFrame("Frame", "swingframe"..i.."timebar", swingframe[i])
             swingframe[i].timebar:SetAllPoints(swingframe[i])
@@ -555,7 +553,7 @@ function XMSWING:CreateSwingFrame()
         swingframe[i].timebar:SetFrameLevel((swingframe[i]:GetFrameLevel())+3)
         swingframe[i].timebar:SetHeight(swingframe[i]:GetHeight())
         swingframe[i].timebar:SetWidth(swingframe[i]:GetWidth())
-    
+
         if (not swingframe[i].startspeed) then
             swingframe[i].startspeed = swingframe[i].timebar:CreateFontString("swingframe"..i.."startspeed", "OVERLAY", "GameFontNormal")
             swingframe[i].startspeed:SetPoint("LEFT", swingframe[i].timebar)
@@ -584,7 +582,7 @@ function XMSWING:CreateSwingFrame()
         end
         swingframe[i].spark.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["SWINGHAND"..i]["SPARKTEXTURE"]))
         swingframe[i].spark.texture:SetVertexColor(settings["SWINGHAND"..i]["SPARKCOLOR"].r,settings["SWINGHAND"..i]["SPARKCOLOR"].g,settings["SWINGHAND"..i]["SPARKCOLOR"].b,settings["SWINGHAND"..i]["SPARKCOLOR"].a)
-   
+
         i = i + 1
     end
 

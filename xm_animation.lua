@@ -1,9 +1,5 @@
---MUST HAVE "xm_init.lua" LOADED FIRST
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
---embedded libs
-local XM_SMedia = LibStub("LibSharedMedia-3.0")
-
---animation system variables
 local arrAlign = {[1] = "LEFT", [2] = "CENTER", [3] = "RIGHT"}
 local arrFrameTexts = {}; --expandable array to hold each line of text
 local arrAniData1 = {}; --arrays to contain texts for each frame
@@ -20,7 +16,7 @@ local ArrayAniData = {arrAniData1, arrAniData2, arrAniData3, arrAniData4, arrAni
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
---display text
+    --display text
 
     --set up text animation placement
     local adat = XM:GetNextAniObj(dispframe)
@@ -28,7 +24,7 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
 
     --increase size for crits
     if (crit) then
-        adat.textsize = adat.textsize * XM_DB["CRITSIZE"] / 100
+        adat.textsize = adat.textsize * XM.db["CRITSIZE"] / 100
     end
 
     --Vertical Animation
@@ -53,6 +49,7 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
 
     --set text start position
     adat.posY = adat.bottompoint
+    adat.text = msg
 
     --set default color if none
     if (not rgbcolor) then
@@ -77,26 +74,23 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
 
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:ONUPDATE_ANIMATION(elapsed)
---upate animations that are being used
+    --upate animations that are being used
 
-    local i = 1
 	local framerate = GetFramerate()
 	timerino = 1.6/framerate
     --check for any text slots
-    while (i <= #ArrayAniData) do
-        for k, v in pairs(ArrayAniData[i]) do
-            XM:DoAnimation(v, timerino)
+    for i, _ in ipairs(ArrayAniData) do
+        for k, value in pairs(ArrayAniData[i]) do
+            XM:DoAnimation(value, timerino)
+            if value == false then tremove(ArrayAniData[i][k]) end
         end
-        i = i + 1
     end
 
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:DoAnimation(aniData, elapsed)
---move text to perform animation
+    --move text to perform animation
 
     --calculate animation
     XM:VerticalAnimation(aniData, elapsed)
@@ -106,29 +100,19 @@ function XM:DoAnimation(aniData, elapsed)
     aniData:SetPoint(arrAlign[aniData.align], aniData.parent, "CENTER", aniData.posX, aniData.posY)
 
      --reset when alpha drops below one percent (zero isn't working because of floating point?)
-    if (aniData.alpha < 0.01) then
+    if (aniData.alpha <= 0.01) then
         XM:AniReset(aniData)
 
-        --check if there are any texts showing
-        local i = 1
-        local adat = false
-        while (i <= #arrFrameTexts) do
-            adat = arrFrameTexts[i]
-            if (adat:IsVisible() == 1) then
-                i = #arrFrameTexts + 1
-            else
-                --adat = false -- completely blow away the text row object?
-                i = i + 1
+        for i, v in ipairs(arrFrameTexts) do
+            if(arrFrameTexts[i] and arrFrameTexts[i]:IsVisible() ~= 1) then
+                arrFrameTexts[i] = false
+                break
             end
-        end
-        if (not adat) then
-            XM:AniInit()
         end
     end
 
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:VerticalAnimation(aniData, elapsed)
 --vertical animation
 
@@ -146,9 +130,19 @@ function XM:VerticalAnimation(aniData, elapsed)
 
 end
 
+function XM:GetNextAvailableID()
+    local random = math.random
+
+    local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    return string.gsub(template, '[xy]', function (c)
+        local v = (c == 'x') and random(0, 0xf) or random(8, 0xb)
+        return string.format('%x', v)
+    end)
+end
+
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:GetNextAniObj(inpframe)
---gets the next available animation object
+    --gets the next available animation object
 
     local adat = false
     local i = 1
@@ -156,7 +150,7 @@ function XM:GetNextAniObj(inpframe)
     --first fill all empty text slots
     while (i <= #arrFrameTexts) do
         adat = arrFrameTexts[i]
-        if (adat:IsVisible() == nil) then
+        if adat and adat:IsVisible() == nil then
             i = #arrFrameTexts + 1
         else
             adat = false
@@ -174,23 +168,24 @@ function XM:GetNextAniObj(inpframe)
     XM:AniReset(adat)
 
     --set defaults based on frame
-    adat.frame = inpframe
-    adat.font = XM_DB[("FRAME"..inpframe)]["FONT"]
-    adat.textsize = XM_DB[("FRAME"..inpframe)]["TEXTSIZE"]
-    adat.fontshadow = XM_DB[("FRAME"..inpframe)]["FONTSHADOW"]
-    adat.alpha = XM_DB[("FRAME"..inpframe)]["ALPHA"]/100
-    adat.posX = XM_DB[("FRAME"..inpframe)]["POSX"]
-    adat.posY = XM_DB[("FRAME"..inpframe)]["POSY"]
-    adat.align = XM_DB[("FRAME"..inpframe)]["ALIGN"]
-    adat.iconside = XM_DB[("FRAME"..inpframe)]["ICONSIDE"]
 
-    adat.anitypeX = XM_DB[("FRAME"..inpframe)]["ANITYPEX"]
-    adat.anitypeY = XM_DB[("FRAME"..inpframe)]["ANITYPEY"]
-    adat.directionX = XM_DB[("FRAME"..inpframe)]["DIRECTIONX"]
-    adat.directionY = XM_DB[("FRAME"..inpframe)]["DIRECTIONY"]
-    adat.addX = XM_DB[("FRAME"..inpframe)]["ADDX"]
-    adat.addY = XM_DB[("FRAME"..inpframe)]["ADDY"]
-    adat.framesize = XM_DB[("FRAME"..inpframe)]["FRAMESIZE"]
+    adat.frame = inpframe
+    adat.font = XM.db[("FRAME"..inpframe)]["FONT"]
+    adat.textsize = XM.db[("FRAME"..inpframe)]["TEXTSIZE"]
+    adat.fontshadow = XM.db[("FRAME"..inpframe)]["FONTSHADOW"]
+    adat.alpha = XM.db[("FRAME"..inpframe)]["ALPHA"]/100
+    adat.posX = XM.db[("FRAME"..inpframe)]["POSX"]
+    adat.posY = XM.db[("FRAME"..inpframe)]["POSY"]
+    adat.align = XM.db[("FRAME"..inpframe)]["ALIGN"]
+    adat.iconside = XM.db[("FRAME"..inpframe)]["ICONSIDE"]
+
+    adat.anitypeX = XM.db[("FRAME"..inpframe)]["ANITYPEX"]
+    adat.anitypeY = XM.db[("FRAME"..inpframe)]["ANITYPEY"]
+    adat.directionX = XM.db[("FRAME"..inpframe)]["DIRECTIONX"]
+    adat.directionY = XM.db[("FRAME"..inpframe)]["DIRECTIONY"]
+    adat.addX = XM.db[("FRAME"..inpframe)]["ADDX"]
+    adat.addY = XM.db[("FRAME"..inpframe)]["ADDY"]
+    adat.framesize = XM.db[("FRAME"..inpframe)]["FRAMESIZE"]
 
     --calculated vars
     adat.bottompoint = adat.posY
@@ -198,26 +193,23 @@ function XM:GetNextAniObj(inpframe)
     return adat
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:AniReset(adat)
---reset a text animation slot
-
-    local i = 1
-    local key, value
-
     --remove this data from the display table
-    while (i <= #ArrayAniData) do
-        for key, value in pairs(ArrayAniData[i]) do
-            if (value == adat) then
-                tremove(ArrayAniData[i], key)
-                i = #ArrayAniData + 1
+    for i, _ in ipairs(ArrayAniData) do
+        for k, value in pairs(ArrayAniData[i]) do
+            if (not value or value.id == adat.id) then
+                tremove(ArrayAniData[i], k)
                 break
             end
         end
-        i = i + 1
+    end
+
+    for i, _ in ipairs(arrFrameTexts) do
+        if not arrFrameTexts[i] then tremove(arrFrameTexts, i) end
     end
 
     --reset all settings
+    adat.id = XM:GetNextAvailableID()
     adat.frame = 0
     adat.textsize = 0
     adat.fontshadow = 1
@@ -245,9 +237,8 @@ function XM:AniReset(adat)
 
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:AniInit()
---initialize animations
+    --initialize animations
 
     local i = 1
     while (i <= #arrFrameTexts) do
@@ -294,6 +285,6 @@ function XM:SetFontSize(object, font, textsize, fontshadow)
 
     --array for font outline
     local arrShadowOutline = {[1] = "", [2] = "OUTLINE", [3] = "THICKOUTLINE"}
-    object:SetFont(XM_SMedia:Fetch("font",font), textsize, arrShadowOutline[fontshadow])
+    object:SetFont(XM.sharedMedia:Fetch("font",font), textsize, arrShadowOutline[fontshadow])
 
 end

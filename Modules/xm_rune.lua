@@ -1,6 +1,4 @@
---embedded Libs
-local XM_SMedia = LibStub("LibSharedMedia-3.0")
-local XM_Locale = LibStub("AceLocale-3.0"):GetLocale("XM")
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
 --local variables
 local framemove = false
@@ -36,20 +34,14 @@ function XMRUNE:PLAYER_LOGIN()
     local classtext,classname = UnitClass("player")
 
     if (classname == "DEATHKNIGHT") then
-        --connect saved variables (AFTER login)
-        if (not XM_DB) then
-            XM_DB = LibStub("AceDB-3.0"):New("XM_CONFIG")
-        end
-
         --initialize DB for new users
-        if (not XM_DB["XMRUNE"]) then
-            XM_DB["XMRUNE"] = {}
-            DEFAULT_CHAT_FRAME:AddMessage(XM_Locale["IDSTRING"].."Initializing Rune Frame: "..UnitName("player").." - "..GetRealmName():trim())
+        if (not XM.db["XMRUNE"]) then
+            XM.db["XMRUNE"] = {}
+            DEFAULT_CHAT_FRAME:AddMessage(XM.locale["addonName"].."Initializing Rune Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
             --write default values to the current profile (too bad they can't be sorted)
-            local key, value
             for key, value in pairs(XMRUNE.DEFAULTS) do
-                XM_DB["XMRUNE"][key] = value
+                XM.db["XMRUNE"][key] = value
             end
         end
 
@@ -63,7 +55,7 @@ function XMRUNE:OnUpdate(elapsed)
 --update screen objects
 
     if (UnitIsGhost("player") == 1 or UnitIsDead("player") == 1) then
-        xm_InCombat = false
+        XM.player.combatActive = false
     end
 
     local i = 1
@@ -89,7 +81,7 @@ end
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMRUNE:CreateRuneFrame()
 
-    local settings = XM_DB["XMRUNE"]
+    local settings = XM.db["XMRUNE"]
     local runegridx = settings["RUNEGRIDX"]
     local runegridy = settings["RUNEGRIDY"]
     local runesquare = settings["RUNESQUARE"]
@@ -117,7 +109,7 @@ function XMRUNE:CreateRuneFrame()
         XM_RUNEFRAME.texture = XM_RUNEFRAME:CreateTexture()
         XM_RUNEFRAME.texture:SetAllPoints(XM_RUNEFRAME)
     end
-    XM_RUNEFRAME.texture:SetTexture(XM_SMedia:Fetch("statusbar", settings["RUNEBACK"]["TEXTURE"]))
+    XM_RUNEFRAME.texture:SetTexture(XM.sharedMedia:Fetch("statusbar", settings["RUNEBACK"]["TEXTURE"]))
     XM_RUNEFRAME.texture:SetVertexColor(settings["RUNEBACK"]["COLOR"].r,settings["RUNEBACK"]["COLOR"].g,settings["RUNEBACK"]["COLOR"].b,settings["RUNEBACK"]["ALPHA"])
 
     --rune buttons
@@ -155,7 +147,7 @@ function XMRUNE:CreateRuneFrame()
             RuneButton[i].cd = RuneButton[i].text:CreateFontString("RuneButton"..i.."cd", "OVERLAY", "GameFontNormal")
             RuneButton[i].cd:SetPoint("CENTER", RuneButton[i].text)
         end
-        RuneButton[i].cd:SetFont(XM_SMedia:Fetch("font",settings["RUNECD"]["FONT"]), (RuneButton[i]:GetHeight()*0.4), "OUTLINE")
+        RuneButton[i].cd:SetFont(XM.sharedMedia:Fetch("font",settings["RUNECD"]["FONT"]), (RuneButton[i]:GetHeight()*0.4), "OUTLINE")
         RuneButton[i].cd:SetTextColor(settings["RUNECD"]["COLOR"].r,settings["RUNECD"]["COLOR"].g,settings["RUNECD"]["COLOR"].b,settings["RUNECD"]["ALPHA"])
 
         i = i + 1
@@ -198,7 +190,7 @@ function XMRUNE:SavePosition()
     movex = cursorx - movex
     movey = cursory - movey
 
-    XM_DB["XMRUNE"]["RUNEFRAME"]["POSX"] = XM_DB["XMRUNE"]["RUNEFRAME"]["POSX"] + movex
-    XM_DB["XMRUNE"]["RUNEFRAME"]["POSY"] = XM_DB["XMRUNE"]["RUNEFRAME"]["POSY"] + movey
+    XM.db["XMRUNE"]["RUNEFRAME"]["POSX"] = XM.db["XMRUNE"]["RUNEFRAME"]["POSX"] + movex
+    XM.db["XMRUNE"]["RUNEFRAME"]["POSY"] = XM.db["XMRUNE"]["RUNEFRAME"]["POSY"] + movey
 
 end

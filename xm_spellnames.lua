@@ -1,4 +1,4 @@
---MUST HAVE "xm_init.lua" LOADED FIRST
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
 --these spells do not appear in the combat log when you cast them
 --they fire a SPELL_CAST_SUCCESS event

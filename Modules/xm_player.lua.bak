@@ -31,7 +31,6 @@ function XMPLAYER:OnInitialize()
         DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Player Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
-        local key, value
         for key, value in pairs(XMPLAYER.DEFAULTS) do
             XM.db["XMPLAYER"][key] = value
         end
@@ -154,7 +153,7 @@ end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMPLAYER:UpdatePlayerBuffs()
-    
+
     local i,j = 1,1
     local playerbufftable = {}
     local playerbufforder = {}
@@ -172,7 +171,7 @@ function XMPLAYER:UpdatePlayerBuffs()
             playerbufftable[i].buffLeft = -1 * (GetTime() - buffLeft)
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
 
@@ -273,7 +272,7 @@ end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMPLAYER:UpdatePlayerDebuffs()
-    
+
     local i,j = 1,1
     local playerdebufftable = {}
     local playerdebufforder = {}
@@ -291,7 +290,7 @@ function XMPLAYER:UpdatePlayerDebuffs()
             playerdebufftable[i].debuffLeft = -1 * (GetTime() - debuffLeft)
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
 

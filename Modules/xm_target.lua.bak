@@ -24,7 +24,6 @@ function XMTARGET:OnInitialize()
         DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Target Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
-        local key, value
         for key, value in pairs(XMTARGET.DEFAULTS) do
             XM.db["XMTARGET"][key] = value
         end
@@ -51,13 +50,13 @@ function XMTARGET:OnUpdate(elapsed)
         if (targetmanamax == 0) then targetmanamax = 0.01 end
         local targetmanapercent = targetmana / targetmanamax
         if (targetmanapercent <= 0.01) then targetmanapercent = 0.01 end
-    
+
         local targethealth = UnitHealth("target")
         local targethealthmax = UnitHealthMax("target")
         if (targethealthmax == 0) then targethealthmax = 0.01 end
         local targethealthpercent = targethealth / targethealthmax
         if (targethealthpercent <= 0.01) then targethealthpercent = 0.01 end
-    
+
         local classtext,classname = UnitClass("target")
         local classcolor = {r = 1.0, g = 1.0, b = 1.0}
         if (classname) then
@@ -89,14 +88,14 @@ function XMTARGET:OnUpdate(elapsed)
                 end
                 targetframe[i]:Show()
             end
-    
+
             i = 2
             if (targethealthmax == 100) then
                 targetframe[i].right:SetText("")
             else
-                targetframe[i].right:SetText(targethealthmax)         
+                targetframe[i].right:SetText(targethealthmax)
             end
-            if (targethealthpercent <= 0.01) then 
+            if (targethealthpercent <= 0.01) then
                 targetframe[i].center:SetText("")
             elseif (targethealthpercent == 1) then
                 targetframe[i].center:SetText("")
@@ -115,7 +114,7 @@ function XMTARGET:OnUpdate(elapsed)
                 targetframe[i].bar.texture:SetVertexColor(1.0, 0.0, 0.0,1); --red
             end
             targetframe[i]:Show()
-    
+
             i = 3
             targetframe[i].bar.texture:SetVertexColor(classcolor.r, classcolor.g, classcolor.b, 1)
             targetframe[i].center:SetText(strsub(UnitName("target"), 1, 24))
@@ -136,7 +135,7 @@ function XMTARGET:OnUpdate(elapsed)
                 targetframe[i].leftleft:SetText(targetlevel)
             end
             targetframe[i]:Show()
-    
+
         end
     else
         i = 1
@@ -167,7 +166,7 @@ end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMTARGET:UpdateTargetBuffs()
-    
+
     local i,j = 1,1
     local targetbufftable = {}
     local targetbufforder = {}
@@ -185,7 +184,7 @@ function XMTARGET:UpdateTargetBuffs()
             targetbufftable[i].buffLeft = -1 * (GetTime() - buffLeft)
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
 
@@ -283,7 +282,7 @@ end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XMTARGET:UpdateTargetDebuffs()
-    
+
     local i,j = 1,1
     local targetdebufftable = {}
     local targetdebufforder = {}
@@ -301,7 +300,7 @@ function XMTARGET:UpdateTargetDebuffs()
             targetdebufftable[i].debuffLeft = -1 * (GetTime() - debuffLeft)
             i = i + 1
         else
-            i = 41 
+            i = 41
         end
     end
 

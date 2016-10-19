@@ -1,10 +1,8 @@
---MUST HAVE "xm_init.lua" LOADED FIRST
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
 --paladin local variables
-local Execute = false
 local SpellActive = false
 local HasSpellActive = false
-local LastTargetHPPercent = 100
 
 local xm_ActiveSpells = {
     [1] = {TALENT="The Art of War", 	BUFF = "The Art of War"},
@@ -14,7 +12,7 @@ local xm_ActiveSpells = {
 function XM:LOGIN_PALADIN()
 --set class vars on login
 
-    Execute = XM:SpellCheck("Hammer of Wrath")
+    Execute =
 
     SpellActive = false
     local key,value
@@ -27,32 +25,11 @@ function XM:LOGIN_PALADIN()
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:UNITHEALTH_PALADIN(arg1, hppercent)
-
-    if (arg1 == "target") then
-        --execute check (linked with target change) ... because blizzard's doesn't work
-        if (Execute and (not UnitIsFriend("target", "player"))) then
-            if (hppercent > 0 and hppercent < 20 and LastTargetHPPercent >= 20) then
-                XM:Display_Event("EXECUTE", "Execute", true, nil, xm_PlayerName, xm_PlayerName, nil)
-                LastTargetHPPercent = hppercent
-            elseif (hppercent >= 20) then
-                LastTargetHPPercent = hppercent
-            else
-                LastTargetHPPercent = 0
-            end
-        else
-            LastTargetHPPercent = 100
-        end
+function XM:PaladinCheckTargetHealth(healthPct)
+    -- Hammer of Wrath was removed from the game...
+    if (GetSpellInfo("Hammer of Wrath") and not UnitIsFriend("target", "player") and healthPct > 0 and healthPct < 20) then
+        XM:Display_Event("EXECUTE", "Execute", true, nil, XM.player.name, XM.player.name, nil)
     end
-
-end
-
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:TARGETCHANGE_PALADIN(arg1, hppercent)
-
-    LastTargetHPPercent = 100
-    XM:UNITHEALTH_PALADIN(arg1,hppercent)
-
 end
 
 --+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -77,7 +54,7 @@ function XM:BUFFFADE_PALADIN(event, source, victim, skill)
         XM:Display_Event("BLOCKINC", "-", nil, nil, source, victim, skill)
         if (XMSHIELD) then XMSHIELD:ShieldEnd() end
     elseif (SpellActive) and (skill == SpellActive) then
-       XM:AniInitFrame(XM_DB["SPELLACTIVE"])
+       XM:AniInitFrame(XM.db["SPELLACTIVE"])
        HasSpellActive = false
     end
 

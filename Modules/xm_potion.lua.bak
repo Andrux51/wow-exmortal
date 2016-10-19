@@ -140,7 +140,6 @@ function XMPOTION:OnInitialize()
         DEFAULT_CHAT_FRAME:AddMessage(XM.locale["IDSTRING"].."Initializing Potion Frame: "..UnitName("player").." - "..GetRealmName():trim())
 
         --write default values to the current profile (too bad they can't be sorted)
-        local key, value
         for key, value in pairs(XMPOTION.DEFAULTS) do
             XM.db["XMPOTION"][key] = value
         end
@@ -197,7 +196,7 @@ function XMPOTION:OnUpdate(elapsed)
                 itemcount = GetItemCount("item:"..itemtable[h][ItemButton[h][i].ID].ID)
                 if (itemcount and itemcount > 0) then
                     ItemButton[h][i].count:SetText(itemcount)
-        
+
                     starttime,cooldown,_ = GetItemCooldown("item:"..itemtable[h][ItemButton[h][i].ID].ID)
                     if (starttime > 0) then
                         ItemButton[h][i].texture:SetVertexColor(0.3,0.3,0.3,1)

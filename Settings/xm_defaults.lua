@@ -1,8 +1,7 @@
---MUST HAVE "xm_init.lua" LOADED FIRST
+local XM = LibStub("AceAddon-3.0"):GetAddon("XM")
 
---default configuration
-XM.DEFAULTS = {
-    ["VERSION"] = XM.VERSION,
+XM.configDefaults = {
+    ["VERSION"] = XM.addonVersion,
     ["CRUSHCHAR"] = "^",
     ["GLANCECHAR"] = "~",
     ["CRITCHAR"] = "+",
@@ -21,13 +20,14 @@ XM.DEFAULTS = {
     ["MANAFILTERINC"] = 1,
     ["SHORTLENGTH"] = 10,
     ["CRITSIZE"] = 120,
-  
+
     --all events (and which frame to put them in)
     ["LOWHP"] = 2,
     ["EXECUTE"] = 2,
     ["LOWMANA"] = 2,
     ["POWERGAIN"] = 2,
     ["COMBAT"] = 2,
+    ["GETLOOT"] = 10,
     ["COMBOPT"] = 0,
     ["SKILLGAIN"] = 10,
     ["KILLBLOW"] = 0,
@@ -94,6 +94,7 @@ XM.DEFAULTS = {
         ["LOWMANA"] = -1,
         ["POWERGAIN"] = 1,
         ["COMBAT"] = -1,
+        ["GETLOOT"] = -1,
         ["COMBOPT"] = -1,
         ["SKILLGAIN"] = -1,
         ["KILLBLOW"] = -1,
@@ -157,6 +158,7 @@ XM.DEFAULTS = {
         ["LOWMANA"] = -1,
         ["POWERGAIN"] = -1,
         ["COMBAT"] = -1,
+        ["GETLOOT"] = -1,
         ["COMBOPT"] = -1,
         ["SKILLGAIN"] = -1,
         ["KILLBLOW"] = -1,
@@ -243,6 +245,7 @@ XM.DEFAULTS = {
             ["LOWMANA"] = {r = 0.0, g = 0.5, b = 1.0, a = 1.0}, 	--*light blue
             ["POWERGAIN"] = {r = 0.0, g = 0.5, b = 1.0, a = 1.0}, 	--*light blue
             ["COMBAT"] = { r = 1.0, g = 0.5, b = 0.5, a = 1.0}, 	--*light red
+            ["GETLOOT"] = { r = 0.0, g = 0.5, b = 0.0, a = 1.0}, 	--*dark green
             ["COMBOPT"] = { r = 1.0, g = 1.0, b = 0.0, a = 1.0}, 	--*yellow
             ["SKILLGAIN"] = {r = 0.2, g = 0.2, b = 1.0, a = 1.0}, 	--*blue
             ["KILLBLOW"] = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}, 	--*white
