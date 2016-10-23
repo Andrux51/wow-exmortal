@@ -14,10 +14,8 @@ local arrAniData9 = {}
 local arrAniData10 = {}
 local ArrayAniData = {arrAniData1, arrAniData2, arrAniData3, arrAniData4, arrAniData5, arrAniData6, arrAniData7, arrAniData8, arrAniData9, arrAniData10}
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
-    --display text
 
+function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
     --set up text animation placement
     local adat = XM:GetNextAniObj(dispframe)
     adat.parent = UIParent
@@ -51,12 +49,8 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
     adat.posY = adat.bottompoint
     adat.text = msg
 
-    --set default color if none
-    if (not rgbcolor) then
-        rgbcolor = {r = 1.0, g = 1.0, b = 1.0}
-    end
+    rgbcolor = rgbcolor or {r = 1.0, g = 1.0, b = 1.0}
 
-    --set up text
     XM:SetFontSize(adat, adat.font, adat.textsize, adat.fontshadow)
     adat:SetTextColor(rgbcolor.r, rgbcolor.g, rgbcolor.b)
     adat:SetAlpha(adat.alpha)
@@ -71,27 +65,25 @@ function XM:DisplayText(dispframe, msg, rgbcolor, crit, parent, icon)
     if (not XM_ANIMATIONFRAME:IsVisible()) then
         XM_ANIMATIONFRAME:Show()
     end
-
 end
 
-function XM:ONUPDATE_ANIMATION(elapsed)
-    --upate animations that are being used
 
+function XM:ONUPDATE_ANIMATION(...)
 	local framerate = GetFramerate()
-	timerino = 1.6/framerate
-    --check for any text slots
+	local timer = 1.6/framerate
+
     for i, _ in ipairs(ArrayAniData) do
-        for k, value in pairs(ArrayAniData[i]) do
-            XM:DoAnimation(value, timerino)
-            if value == false then tremove(ArrayAniData[i][k]) end
+        for k, v in pairs(ArrayAniData[i]) do
+            if not v then
+                tremove(ArrayAniData[i][k])
+            else
+                XM:DoAnimation(v, timer)
+            end
         end
     end
-
 end
 
 function XM:DoAnimation(aniData, elapsed)
-    --move text to perform animation
-
     --calculate animation
     XM:VerticalAnimation(aniData, elapsed)
 
@@ -110,12 +102,9 @@ function XM:DoAnimation(aniData, elapsed)
             end
         end
     end
-
 end
 
 function XM:VerticalAnimation(aniData, elapsed)
---vertical animation
-
     --adjust vertical position (up or down)
     aniData.posY = aniData.posY + (elapsed)*(aniData.addY)*(aniData.directionY)
 
@@ -127,7 +116,6 @@ function XM:VerticalAnimation(aniData, elapsed)
     if (aniData.directionY > 0 and aniData.posY >= fadepos) or (aniData.directionY < 0 and aniData.posY <= fadepos) then
         aniData.alpha = (aniData.alpha)*(1 - (aniData.directionY)*((aniData.posY - fadepos)/(fadedist))*0.02)
     end
-
 end
 
 function XM:GetNextAvailableID()
@@ -140,7 +128,6 @@ function XM:GetNextAvailableID()
     end)
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:GetNextAniObj(inpframe)
     --gets the next available animation object
 
@@ -238,37 +225,16 @@ function XM:AniReset(adat)
 end
 
 function XM:AniInit()
-    --initialize animations
-
-    local i = 1
-    while (i <= #arrFrameTexts) do
-        XM:AniReset(arrFrameTexts[i])
-        i = i + 1
+    for i, v in ipairs(ArrayAniData) do
+        v = {}
     end
+
     arrFrameTexts = {}
+
     XM_ANIMATIONFRAME:Hide()
-
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-function XM:AniInitFrame(inpframe)
-
-    local i = 1
-    local adat
-    while (i <= #arrFrameTexts) do
-        adat = arrFrameTexts[i]
-        if (adat.frame == inpframe) then
-            XM:AniReset(arrFrameTexts[i])
-        end
-        i = i + 1
-    end
-
-end
-
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:CreateAnimationFrame()
---create animation frame
-
     if (not XM_ANIMATIONFRAME) then
         XM_ANIMATIONFRAME = CreateFrame("Frame", "XM Animation Frame", UIParent)
     end
@@ -279,12 +245,8 @@ function XM:CreateAnimationFrame()
     XM:AniInit()
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:SetFontSize(object, font, textsize, fontshadow)
---set the font of an object
-
-    --array for font outline
     local arrShadowOutline = {[1] = "", [2] = "OUTLINE", [3] = "THICKOUTLINE"}
-    object:SetFont(XM.sharedMedia:Fetch("font",font), textsize, arrShadowOutline[fontshadow])
 
+    object:SetFont(XM.sharedMedia:Fetch("font",font), textsize, arrShadowOutline[fontshadow])
 end
