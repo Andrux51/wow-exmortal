@@ -5,7 +5,8 @@ local XM = LibStub("AceAddon-3.0"):NewAddon("XM", "AceEvent-3.0", "AceConsole-3.
 XM.addonVersion = GetAddOnMetadata(addonName, "Version")
 
 XM.player = {
-    combatActive = false
+    combatActive = false,
+    pet = {}
 }
 XM.mergeCaptures = {}
 
@@ -14,11 +15,9 @@ local PlayerLastHPPercent = 100
 local PlayerLastMPPercent = 100
 local PlayerLastHPFull = 100
 local PlayerLastMPFull = 100
-local ExtraAttack = {}	--table for extra attacks
 local NextSpellCheck = {}
 local ReflectTable = {}
 
-local pettable = {}
 
 -- addon is registered to the client
 function XM:OnInitialize()
@@ -45,7 +44,7 @@ function XM:OnInitialize()
     XM.player.classNameLocalized, XM.player.className, XM.player.classID = UnitClass('player')
     XM.player.classColoredString = '|c'..RAID_CLASS_COLORS[XM.player.className].colorStr..XM.player.classNameLocalized..'|r'
 
-    --DEFAULT_CHAT_FRAME:AddMessage(RAID_CLASS_COLORS[XM.player.className].colorStr)
+    --XM:DefaultChatMessage(RAID_CLASS_COLORS[XM.player.className].colorStr)
 
     --register slash command
     XM:RegisterChatCommand("xm", function() XM.configDialog:Open("eXMortal", configFrame) end)
@@ -74,6 +73,8 @@ end
 
 -- first event after initialize
 function XM:PLAYER_LOGIN()
+    XM.player.id = UnitGUID("player")
+
     XM.player.name = UnitName("player")
 end
 
@@ -97,48 +98,14 @@ function XM:UNIT_HEALTH(_, unit)
             PlayerLastHPPercent = hppercent
         end
     elseif (unit == "target") then --target health change
-        XM:CheckTargetHealth()
     end
-
 end
 
 -- check for target change to reveal need for execute, etc.
 function XM:PLAYER_TARGET_CHANGED()
-    XM:CheckTargetHealth()
-
-    --extra attack fix
-    ExtraAttack = {}
-
     --spellcasting fix
     NextSpellCheck = {}
 end
-
-function XM:CheckTargetHealth()
-    local healthPct = (UnitHealth("target") / UnitHealthMax("target"))*100
-
-    if (XM.player.className == "PALADIN") then
-        --XM:PaladinCheckTargetHealth(healthPct)
-    elseif (XM.player.className == "WARRIOR") then
-        --XM:WarriorCheckTargetHealth(healthPct)
-    end
-end
-
---unit power changes (mana, rage, energy)
-function XM:UnitPower(_, unit)
-    --player mana change
-    if (unit == "player" and UnitPowerType("player", 0) == 0) then
-        local warnlevel = XM.db["LOWMANAVALUE"]
-        if (warnlevel >= 1) then
-            local mppercent = (UnitPower("player", 0) / UnitPowerMax("player", 0))*100
-            if (mppercent < warnlevel and PlayerLastMPPercent >= warnlevel and (not UnitIsFeignDeath("player"))) then
-                --PlaySoundFile("Sound\\Spells\\ShaysBell.wav")
-                XM:Display_Event("LOWMANA", XM.locale["LOWMANA"].." ("..UnitPower("player", 0)..")", nil, nil, XM.player.name, XM.player.name, nil)
-            end
-            PlayerLastMPPercent = mppercent
-        end
-    end
-end
-
 
 --player entering combat
 function XM:PLAYER_REGEN_DISABLED()
@@ -161,7 +128,7 @@ end
 function XM:PLAYER_COMBO_POINTS()
     local cpCount = GetComboPoints()
 
-    if (cpCount > 0) then
+    if cpCount > 0 then
         local text = cpCount
 
         if (cpCount == 1) then
@@ -181,7 +148,7 @@ function XM:CHAT_MSG_LOOT(_, ...)
     message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
     --print(message) -- looks like 'You receive item: [itemName]x2.'
 
-    if(target == XM.player.name) then
+    if target == XM.player.name then
         -- itemLink style can be found in http://wowprogramming.com/docs/api_types
         local itemLink = message:match(".+(\124c.-\124h\124r)")
         if itemLink then
@@ -204,18 +171,16 @@ function XM:CHAT_MSG_MONEY(_, ...)
     message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
 
     --print(message) -- like "You loot 1 Gold, 10 Silver, 50 Copper"
+    -- TODO: address "You loot 10 Gold"
 
     local copperTotal = ''
     for num in message:gmatch("%d+") do
         copperTotal = copperTotal..XM:PadLeft(num, 2)
     end
 
-    -- local gold, silver, copper = message:match(".+(%d+%s.-),%s(%d+%s.-),%s(%d+%s.+)")
-
     XM:Display_Event("GETLOOT", '+'..GetCoinTextureString(copperTotal), nil, nil, XM.player.name, XM.player.name, nil)
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:CHAT_MSG_SKILL(_,arg1)
     --skill gains
 
@@ -250,12 +215,10 @@ function XM:CHAT_MSG_SKILL(_,arg1)
     end
 
     XM:Display_Event("SKILLGAIN", skill..": "..rank, nil, nil, XM.player.name, XM.player.name, nil)
-
 end
 
---+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
 function XM:CHAT_MSG_COMBAT_FACTION_CHANGE(_,arg1)
---reputation gains
+    --reputation gains
 
     local repcheck = strfind(arg1, " ")
     if (strsub(arg1, 1, repcheck - 1) == "Reputation") then
@@ -278,7 +241,6 @@ function XM:CHAT_MSG_COMBAT_FACTION_CHANGE(_,arg1)
 
         XM:Display_Event("REPGAIN", incdec..rank.." "..fact, nil, nil, XM.player.name, XM.player.name, nil)
     end
-
 end
 
 function XM:TruncateAmount(amount)
@@ -302,69 +264,81 @@ function XM:TruncateAmount(amount)
 end
 
 
+
+
+local petTable = {}
+
+
+
+
 -- http://wow.gamepedia.com/COMBAT_LOG_EVENT
 function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     local timestamp, event, hideCaster, srcGUID, srcName, srcFlags,
         srcRaidFlags, dstGUID, dstName, dstFlags, dstRaidFlags, one, two, three,
         four, five, six, seven, eight, nine, ten, eleven, twelve = ...
 
-    local source = srcName
-    local victim = dstName
-    local sourceid = srcGUID
-    local victimid = dstGUID
-    if (not source) then source = "" end
-    if (not victim) then victim = "" end
+    local skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush, missType, power, extra
 
-    local playerid = UnitGUID("player")
-    local playerpetid = UnitGUID("playerpet")
+    local displayFrame = ''
+
+    XM.player.pet.id = UnitGUID("playerpet")
 
     local i = 1
     local petkey = 0
-    local pettablecount = #pettable
 
-    local skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush, missType, power, extra
+    --local petTable = {}
+
     local filter = false
 
     --get player pets (that aren't "playerpet") ... (mostly for totems)
     --?? for better memory usage, should destroy old totems / remove old pets
     if (strfind(event, "_SUMMON")) then
-        if (pettablecount < 1) then
-            pettable[1] = {ID = victimid, NAME = victim, OWNERID = sourceid, OWNERNAME = source}
+        if (#petTable < 1) then
+            petTable[1] = {ID = dstGUID, NAME = dstName, OWNERID = srcGUID, OWNERNAME = srcName}
         else
-            i = 1
-            while (i <= pettablecount) do
-                if (pettable[i].ID == victimid) then
-                    i = pettablecount
-                elseif (i == pettablecount) then
-                    pettable[(pettablecount + 1)] = {ID = victimid, NAME = victim, OWNERID = sourceid, OWNERNAME = source}
+            for i, _ in ipairs(petTable) do
+                if (petTable[i].ID == dstGUID) then
+                    break
+                elseif (i == #petTable) then
+                    --petTable[(#petTable + 1)] = {ID = dstGUID, NAME = dstName, OWNERID = srcGUID, OWNERNAME = srcName}
+                    tinsert(petTable, {ID = dstGUID, NAME = dstName, OWNERID = srcGUID, OWNERNAME = srcName})
                 end
-                i = i + 1
             end
         end
     end
 
-    if (sourceid == playerid or sourceid == playerpetid) then
+    if srcGUID == XM.player.id or srcGUID == XM.player.pet.id then
     else
         --check pet table
         i = 1
-        while (i <= pettablecount) do
-            if (sourceid == pettable[i].ID) then
+        while (i <= #petTable) do
+            if (srcGUID == petTable[i].ID) then
                 petkey = i
-                i = pettablecount
+                i = #petTable
             end
             i = i + 1
         end
     end
 
-    --'damage' events
+    if strfind(event, 'SWING') or strfind(event, 'RANGE') then
+        skill = nil
+    elseif strfind(event, "ENVIRONMENTAL") then
+        skill = one
+    else
+        skill = two
+    end
+
     if strfind(event, "_DAMAGE") then
+        -- incoming/outgoing damage events
         if strfind(event, "SWING") then
-            skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = "Melee", one, XM.elements[(three)], four, five, six, seven, eight, nine
+            amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = one, XM.elements[(three)], four, five, six, seven, eight, nine
         elseif strfind(event, "ENVIRONMENTAL") then
-            skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = one, two, XM.elements[(four)], five, six, seven, eight, nine, ten
+            amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, XM.elements[(four)], five, six, seven, eight, nine, ten
         else
-            skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, four, XM.elements[(six)], seven, eight, nine, ten, eleven, twelve
+            amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = four, XM.elements[(six)], seven, eight, nine, ten, eleven, twelve
         end
+
+        if element == 'physical' then element = nil end
 
         local text = XM:TruncateAmount(amount)
         if (isCrush) then
@@ -384,206 +358,222 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
             text = text.." ("..XM.locale["RESIST"].." "..XM:TruncateAmount(amountResist)..")"
         end
 
-        if (victimid == playerid) then
-            --incoming damage (melee, spell, etc..)
-            if (XM.db["DMGFILTERINC"] >= 1 and amount < XM.db["DMGFILTERINC"]) then filter = true end
+        local incoming = false
+        if dstGUID == XM.player.id or (XM.player.pet.id and dstGUID == XM.player.pet.id) then
+            incoming = true
+        end
 
-            if strfind(event, "ENVIRONMENTAL") then
-                if (skill == "FALLING") then
-                    if (not filter) then XM:Display_Event("HITINC", "-"..text.." <"..skill.."> "..("%.0f"):format((amount / UnitHealthMax("player"))*100).."%", nil, nil, source, victim, nil) end
-                else
-                    if (not filter) then XM:Display_Event("HITINC", "-"..text.." <"..skill..">", nil, element, source, victim, nil) end
-                end
-            elseif (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                if (element == "physical") then element = nil end
-                if (not filter) then XM:Display_Event("HITINC", "-"..text, isCrit, element, source, victim, nil) end
-            elseif (strfind(event, "SPELL_PERIODIC")) then
-                if (not filter) then XM:Display_Event("DOTINC", "-"..text, isCrit, element, source, victim, skill) end
-            else
-                if (element == "physical") then element = nil end
-                if (not filter) then XM:Display_Event("SPELLINC", "-"..text, isCrit, element, source, victim, skill) end
+        if incoming then
+            if (XM.db["DMGFILTERINC"] > 0 and amount < XM.db["DMGFILTERINC"]) then filter = true end
+
+            text = '-'..text
+
+            displayFrame = 'HITINC'
+
+            if strfind(event, "SPELL_PERIODIC") then
+                displayFrame = 'DOTINC'
+            elseif strfind(event, 'SPELL') then
+                displayFrame = 'SPELLINC'
             end
 
-        elseif (sourceid == playerid) then
-            if (element == "physical") then element = nil end
-            -- fish skills out of array from class file main.lua
-            for k, v in pairs(XM.mergeCaptures) do
-                if skill == k and not XM.mergeCaptures[k].merging then
-                    -- print('Merging '..k)
-                    XM.mergeCaptures[k] = {total = 0, merging = true}
-
-                    -- callback after merge is complete (duration is 1 frame)
-                    C_Timer.After(0, function()
-                        text = XM:TruncateAmount(XM.mergeCaptures[k].total)
-                        -- print('Merged '..k..': '..text)
-                        if strfind(event, "SWING") then
-                            XM:Display_Event("HITOUT", text, isCrit, element, source, victim, skill)
-                        elseif strfind(event, "SPELL") then
-                            XM:Display_Event("SPELLOUT", text, isCrit, element, source, victim, skill)
-                        end
-                        XM.mergeCaptures[k] = {total = 0, merging = false}
-                    end)
-                end
-            end
-            --outgoing damage
+            if strfind(event, 'SWING') or strfind(event, 'RANGE') then skill = nil end
+        else
             if (XM.db["DMGFILTEROUT"] > 0 and amount < XM.db["DMGFILTEROUT"]) then filter = true end
 
-            local d = date('*t')
-            --melee attacks
-            if (strfind(event, "SWING")) then
+            displayFrame = 'HITOUT'
+
+            if strfind(event, "SPELL_PERIODIC") then
+                displayFrame = 'DOTOUT'
+            elseif strfind(event, 'SPELL') then
+                displayFrame = 'SPELLOUT'
+            end
+
+            if strfind(event, 'SWING') then
+                skill = 'Melee'
+            elseif strfind(event, 'RANGE') then
+                skill = 'Ranged'
+            end
+        end
+
+        if not filter then
+            if dstGUID == XM.player.id then
+                if strfind(event, "ENVIRONMENTAL") then
+                    local dmgPct = ''
+
+                    if (skill == "FALLING") then
+                        dmgPct = ' '..("%.0f"):format((amount / UnitHealthMax("player"))*100)..'%'
+                        element = nil
+                    end
+
+                    XM:Display_Event(displayFrame, string.format("%s <%s>%s", text, skill, dmgPct), nil, element, srcName, dstName, nil)
+                else
+                    XM:Display_Event(displayFrame, text, isCrit, element, srcName, dstName, skill)
+                end
+            elseif srcGUID == XM.player.id then
+                -- local d = date('*t')
                 -- print('['..d.hour..':'..d.min..'pm] '..event..' ('..skill..') '..text)
 
+                -- get skills out of array from class file main.lua
+                for k, _ in pairs(XM.mergeCaptures) do
+                    if skill == k and not XM.mergeCaptures[k].merging then
+                        -- print('Merging '..k)
+                        XM.mergeCaptures[k] = {total = 0, merging = true}
+
+                        -- callback after merge is complete (duration is 1 frame)
+                        C_Timer.After(0, function() -- rife with race conditions
+                            text = XM:TruncateAmount(XM.mergeCaptures[k].total)
+                            -- print('Merged '..k..': '..text)
+
+                            XM:Display_Event(displayFrame, text, isCrit, element, srcName, dstName, skill)
+
+                            XM.mergeCaptures[k] = {total = 0, merging = false}
+                        end)
+                    end
+                end
+
                 local skillMerging = false
-                for k, v in pairs(XM.mergeCaptures) do
-                    if XM.mergeCaptures[k] and XM.mergeCaptures[k].merging then
+                for k, _ in pairs(XM.mergeCaptures) do
+                    if XM.mergeCaptures[k].merging then
                         skillMerging = true
                         XM.mergeCaptures[k].total = XM.mergeCaptures[k].total + amount
                     end
                 end
 
                 if not skillMerging then
-                    if (#ExtraAttack > 0) then
-                        --check unnamed damage for extra attacks
-                        if not filter then XM:Display_Event("HITOUT", text, isCrit, element, source, victim, ExtraAttack[1]) end
-                        skill = ExtraAttack[1]
-                        tremove(ExtraAttack, 1)
-                    elseif not filter then
-                        XM:Display_Event("HITOUT", text, isCrit, element, source, victim, nil)
+                    -- print('Displayed '..skill..': '..text)
+                    XM:Display_Event(displayFrame, text, isCrit, element, srcName, dstName, skill)
+                end
+            elseif XM.player.pet.id and dstGUID == XM.player.pet.id then
+                displayFrame = 'PET'..displayFrame
+
+                if strfind(event, "ENVIRONMENTAL") then
+                    local dmgPct = ''
+
+                    if (skill == "FALLING") then
+                        dmgPct = ' '..("%.0f"):format((amount / UnitHealthMax("playerpet"))*100)..'%'
+                        element = nil
                     end
-                end
-            elseif (strfind(event, "RANGE")) then
-                -- print(event..' ('..skill..')')
-                if (not filter) then XM:Display_Event("HITOUT", text, isCrit, element, source, victim, nil) end
-                if (XMSWING) then
-                    XMSWING:SwingCheck("Range", 0)
-                end
-            elseif (strfind(event, "SPELL_PERIODIC")) then
-                -- print(event..' ('..skill..')')
-                if (not filter) then XM:Display_Event("DOTOUT", text, isCrit, element, source, victim, skill) end
-            else
-                -- print('['..d.hour..':'..d.min..'pm] '..event..' ('..skill..') '..text)
 
-                if (#ExtraAttack > 0 and skill == ExtraAttack[1]) then
-                    tremove(ExtraAttack, 1)
-                end
-
-                local skillMerging = false
-                for k, v in pairs(XM.mergeCaptures) do
-                    if XM.mergeCaptures[k] and XM.mergeCaptures[k].merging then
-                        skillMerging = true
-                        XM.mergeCaptures[k].total = XM.mergeCaptures[k].total + amount
-                    end
-                end
-
-                if not filter and not skillMerging then
-                    XM:Display_Event("SPELLOUT", text, isCrit, element, source, victim, skill)
-                end
-            end
-
-        --incoming pet damage (melee, spell, etc..)
-        elseif (playerpetid and victimid == playerpetid) then
-
-            --damage filter
-            if (XM.db["DMGFILTERINC"] >= 1 and amount < XM.db["DMGFILTERINC"]) then filter = true end
-
-            --environmental damage
-            if strfind(event, "ENVIRONMENTAL") then
-                if (skill == "FALLING") then
-                    if (not filter) then XM:Display_Event("PETHITINC", "-"..text.." <"..skill.."> ".."("..PET..")"..("%.0f"):format((amount / UnitHealthMax("player"))*100).."%", nil, nil, source, victim, nil) end
+                    XM:Display_Event(displayFrame, string.format("%s <%s> (%s)%s", text, skill, PET, dmgPct), nil, element, srcName, dstName, nil)
                 else
-                    if (not filter) then XM:Display_Event("PETHITINC", "-"..text.." <"..skill..">".."("..PET..")", nil, element, source, victim, nil) end
+                    XM:Display_Event(displayFrame, string.format('%s (%s)', text, PET), isCrit, element, srcName, dstName, skill)
                 end
-            --melee or range attacks
-            elseif (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                if (element == "physical") then element = nil end
-                if (not filter) then XM:Display_Event("PETHITINC", "-"..text.."("..PET..")", isCrit, element, source, victim, nil) end
-            --spell damage
-            elseif (strfind(event, "SPELL_PERIODIC")) then
-                if (not filter) then XM:Display_Event("PETDOTINC", "-"..text.."("..PET..")", isCrit, element, source, victim, skill) end
-            else
-                if (element == "physical") then element = nil end
-                if (not filter) then XM:Display_Event("PETSPELLINC", "-"..text.."("..PET..")", isCrit, element, source, victim, skill) end
+            elseif XM.player.pet.id and srcNameid == XM.player.pet.id then
+                if strfind(event, 'DAMAGE_') then -- damage shield/split damage
+                    skill = nil
+                    displayFrame = 'SPELLOUT'
+                end
+
+                displayFrame = 'PET'..displayFrame
+
+                XM:Display_Event(displayFrame, string.format('%s (%s)', text, PET), isCrit, element, srcName, dstName, skill)
+            elseif #ReflectTable > 0 then
+                --reflected events
+                if (ReflectTable[1].TARGET == srcGUID and ReflectTable[1].SPELL == skill) then
+                    XM:Display_Event("SPELLOUT", "("..XM.locale["REFLECT"]..") "..text, isCrit, element, srcName, dstName, skill)
+
+                    tremove(ReflectTable,1)
+                end
             end
-
-        --outgoing pet damage
-        elseif (playerpetid and sourceid == playerpetid) or (petkey >= 1) then
-            local ownerid = playerid
-            local ownername = XM.player.name
-
-            if (petkey >= 1) then
-                sourceid = pettable[petkey].ID
-                source = pettable[petkey].NAME
-                ownerid = pettable[petkey].OWNERID
-                ownername = pettable[petkey].OWNERNAME
-            end
-
-            --damage filter
-            if (XM.db["DMGFILTEROUT"] >= 1 and amount < XM.db["DMGFILTEROUT"]) then filter = true end
-
-            --melee damage
+        end
+    elseif (strfind(event, "_MISSED")) then
+        -- miss events [miss, dodge, block, deflect, immune, evade, parry, resist, absorb, reflect]
+        if strfind(event, "SWING") then
+            missType = one
+        elseif strfind(event, "ENVIRONMENTAL") then
+            missType = two
+        else
+            missType = four
+        end
+        if (dstGUID == XM.player.id) then
             if (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                if (element == "physical") then element = nil end
-                if (not filter) and (ownerid == playerid) then XM:Display_Event("PETHITOUT", text.."("..PET..")", isCrit, element, source, victim, nil) end
-            elseif (strfind(event, "DAMAGE_")) then
-                if (not filter) and (ownerid == playerid) then XM:Display_Event("PETSPELLOUT", text.."("..PET..")", isCrit, element, source, victim, nil) end
-            elseif (strfind(event, "SPELL_PERIODIC")) then
-                if (not filter) and (ownerid == playerid) then XM:Display_Event("PETDOTOUT", text.."("..PET..")", isCrit, element, source, victim, skill) end
+                XM:Display_Event(missType.."INC", missType, nil, nil, srcName, dstName, nil)
             else
-                if (element == "physical") then element = nil end
-                if (not filter) and (ownerid == playerid) then XM:Display_Event("PETSPELLOUT", text.."("..PET..")", isCrit, element, source, victim, skill) end
+                if (missType == "REFLECT") then
+                    tinsert(ReflectTable, {TARGET = srcGUID, SPELL = skill})
+                end
+                XM:Display_Event(missType.."INC", missType, nil, nil, srcName, dstName, skill)
             end
-
-        --reflected events
+            if (XM.player.className == "WARRIOR") then
+                XM:MISSINC_WARRIOR(event, srcName, dstName, skill, missType)
+            elseif (XM.player.className == "DEATHKNIGHT") then
+                XM:MISSINC_DEATHKNIGHT(event, srcName, dstName, skill, missType)
+            end
+        elseif (srcGUID == XM.player.id) then
+            if (strfind(event, "SWING")) then
+                XM:Display_Event(missType.."OUT", missType, nil, nil, srcName, dstName, nil)
+            elseif (strfind(event, "RANGE")) then
+                XM:Display_Event(missType.."OUT", missType, nil, nil, srcName, dstName, nil)
+            else
+                if (#NextSpellCheck > 0) then
+                    for key, value in pairs(NextSpellCheck) do
+                        if (value == skill) then
+                            tremove(NextSpellCheck,key)
+                        end
+                    end
+                end
+                XM:Display_Event(missType.."OUT", missType, nil, nil, srcName, dstName, skill)
+            end
+            if (XM.player.className == "WARRIOR") then
+                XM:MISSOUT_WARRIOR(event, srcName, dstName, skill, missType)
+            elseif (XM.player.className == "DEATHKNIGHT") then
+                XM:MISSOUT_DEATHKNIGHT(event, srcName, dstName, skill, missType)
+            end
+        elseif (XM.player.pet.id and dstGUID == XM.player.pet.id) then
+            -- incoming pet miss events
+            if (strfind(event, "SWING") or strfind(event, "RANGE")) then
+                XM:Display_Event("PET"..missType.."INC", missType.."("..PET..")", nil, nil, srcName, dstName, nil)
+            else
+                XM:Display_Event("PET"..missType.."INC", missType.."("..PET..")", nil, nil, srcName, dstName, skill)
+            end
+        elseif (XM.player.pet.id and srcGUID == XM.player.pet.id) then
+            -- outgoing pet miss events
+            if (strfind(event, "SWING") or strfind(event, "RANGE")) then
+                XM:Display_Event("PETMISSOUT", PET.." "..missType, nil, nil, srcName, dstName, nil)
+            else
+                XM:Display_Event("PETMISSOUT", PET.." "..missType, nil, nil, srcName, dstName, skill)
+            end
         elseif (#ReflectTable >= 1) then
-            --damage filter
-            if (XM.db["DMGFILTEROUT"] > 0 and amount < XM.db["DMGFILTEROUT"]) then filter = true end
-
-            if (ReflectTable[1].TARGET == sourceid and ReflectTable[1].SPELL == skill) then
-                if (element == "physical") then element = nil end
-                if (not filter) then XM:Display_Event("SPELLOUT", "("..XM.locale["REFLECT"]..") "..text, isCrit, element, source, victim, skill) end
+            -- reflected events
+            if (ReflectTable[1].TARGET == srcGUID and ReflectTable[1].SPELL == skill) then
+                XM:Display_Event(missType.."OUT", "("..XM.locale["REFLECT"]..") "..missType, nil, nil, srcName, dstName, skill)
                 tremove(ReflectTable,1)
             end
         end
-
-    --damage shields or split damage
     elseif (strfind(event, "DAMAGE_")) then
-        skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, four, XM.elements[(six)], seven, eight, nine, ten, eleven, twelve
+        -- damage shields or split damage
+        skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, four or 0, XM.elements[(six)], seven, eight, nine, ten, eleven, twelve
 
-        if (not strfind(event, "MISSED")) then
-            if (not amount) then amount = 0 end
-            local text = XM:TruncateAmount(amount)
-            if (isCrush) then
-                text = XM.db["CRUSHCHAR"]..text..XM.db["CRUSHCHAR"]
-            elseif (isGlance) then
-                text = XM.db["GLANCECHAR"]..text..XM.db["GLANCECHAR"]
-            elseif (isCrit) then
-                text = XM.db["CRITCHAR"]..text..XM.db["CRITCHAR"]
-            end
-            if (amountAbsorb) and (XM.db["ABSORBINC"]) then
-                text = text.." ("..XM.locale["ABSORB"].." "..XM:TruncateAmount(amountAbsorb)..")"
-            end
-            if (amountBlock) and (XM.db["BLOCKINC"]) then
-                text = text.." ("..XM.locale["BLOCK"].." "..XM:TruncateAmount(amountBlock)..")"
-            end
-            if (amountResist) and (XM.db["RESISTINC"]) then
-                text = text.." ("..XM.locale["RESIST"].." "..XM:TruncateAmount(amountResist)..")"
-            end
-
-            if (victimid == UnitGUID("player")) and (XM.db["DMGFILTERINC"] < 1 or amount > XM.db["DMGFILTERINC"]) then
-                XM:Display_Event("DMGSHIELDINC", "-"..text, isCrit, element, source, victim, skill)
-            elseif (sourceid == UnitGUID("player")) and (XM.db["DMGFILTEROUT"] < 1 or amount > XM.db["DMGFILTEROUT"]) then
-                XM:Display_Event("DMGSHIELDOUT", text, isCrit, element, source, victim, skill)
-            end
+        local text = XM:TruncateAmount(amount)
+        if (isCrush) then
+            text = XM.db["CRUSHCHAR"]..text..XM.db["CRUSHCHAR"]
+        elseif (isGlance) then
+            text = XM.db["GLANCECHAR"]..text..XM.db["GLANCECHAR"]
+        elseif (isCrit) then
+            text = XM.db["CRITCHAR"]..text..XM.db["CRITCHAR"]
+        end
+        if (amountAbsorb) and (XM.db["ABSORBINC"]) then
+            text = text.." ("..XM.locale["ABSORB"].." "..XM:TruncateAmount(amountAbsorb)..")"
+        end
+        if (amountBlock) and (XM.db["BLOCKINC"]) then
+            text = text.." ("..XM.locale["BLOCK"].." "..XM:TruncateAmount(amountBlock)..")"
+        end
+        if (amountResist) and (XM.db["RESISTINC"]) then
+            text = text.." ("..XM.locale["RESIST"].." "..XM:TruncateAmount(amountResist)..")"
         end
 
-    --'heal' events
+        if dstGUID == XM.player.id and amount > XM.db["DMGFILTERINC"] then
+            XM:Display_Event("DMGSHIELDINC", "-"..text, isCrit, element, srcName, dstName, skill)
+        elseif srcGUID == XM.player.id and amount > XM.db["DMGFILTEROUT"] then
+            XM:Display_Event("DMGSHIELDOUT", text, isCrit, element, srcName, dstName, skill)
+        end
     elseif strfind(event, "_HEAL") then
         if strfind(event, "SWING") then
-            skill, amount, isCrit, extra = "Melee", one, four, two
+            amount, isCrit, extra = one, four, two
         elseif strfind(event, "ENVIRONMENTAL") then
-            skill, amount, isCrit, extra = one, two, five, three
+            amount, isCrit, extra = two, five, three
         else
-            skill, amount, isCrit, extra = two, four, seven, five
+            amount, isCrit, extra = four, seven, five
         end
 
         local healtext = XM:TruncateAmount(amount)
@@ -595,404 +585,175 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
             end
         end
 
-        --heals over time
         if (XM.db["SHOWHOTS"] or not strfind(event, "SPELL_PERIODIC")) then
+            --heals over time
             if (isCrit) then
                 healtext = XM.db["CRITCHAR"]..healtext.."+"..XM.db["CRITCHAR"]
             end
-            --self heals
-            if (sourceid == UnitGUID("player") and victimid == UnitGUID("player")) then
-                --heal filter (after overhealing)
-                if (healamt > XM.db["HEALFILTERINC"] and healamt > XM.db["HEALFILTEROUT"]) then
-                    XM:Display_Event("HEALINC", "+"..healtext, isCrit, nil, source, victim, skill)
-                end
-            --incoming heals
-            elseif (victimid == UnitGUID("player")) then
-                --heal filter (after overhealing)
+
+            if (dstGUID == XM.player.id) then
                 if (healamt > XM.db["HEALFILTERINC"]) then
-                    XM:Display_Event("HEALINC", "+"..healtext, isCrit, nil, source, victim, skill)
+                    XM:Display_Event("HEALINC", "+"..healtext, isCrit, nil, srcName, dstName, skill)
                 end
-            --outgoing heals
-            elseif (sourceid == UnitGUID("player")) then
-                --heal filter (after overhealing)
+            elseif (srcGUID == XM.player.id) then
                 if (healamt > XM.db["HEALFILTEROUT"]) then
-                    XM:Display_Event("HEALOUT", "+"..healtext, isCrit, nil, source, victim, skill)
+                    XM:Display_Event("HEALOUT", "+"..healtext, isCrit, nil, srcName, dstName, skill)
+                end
+            elseif (XM.player.pet.id and srcGUID == XM.player.pet.id) or (petkey >= 1 and petTable[petkey].OWNERID == XM.player.id) then
+                --outgoing pet heals
+                if (petkey >= 1 and petTable[petkey].OWNERID == XM.player.id) then
+                    srcGUID = petTable[petkey].ID
+                    source = petTable[petkey].NAME
                 end
 
-            --outgoing pet heals
-            elseif (playerpetid and sourceid == playerpetid) or (petkey >= 1 and pettable[petkey].OWNERID == UnitGUID("player")) then
-                if (petkey >= 1 and pettable[petkey].OWNERID == UnitGUID("player")) then
-                    sourceid = pettable[petkey].ID
-                    source = pettable[petkey].NAME
-                end
-                --heal filter (after overhealing)
                 if (healamt > XM.db["HEALFILTEROUT"]) then
-                    XM:Display_Event("HEALOUT", "+"..healtext, isCrit, nil, source, victim, skill)
+                    XM:Display_Event("HEALOUT", "+"..healtext, isCrit, nil, source, dstName, skill)
                 end
 
             end
         end
-
-    --'miss' events [miss, dodge, block, deflect, immune, evade, parry, resist, absorb, reflect]
-    elseif (strfind(event, "_MISSED")) then
-        if strfind(event, "SWING") then
-            skill, missType = "Melee", one
-        elseif strfind(event, "ENVIRONMENTAL") then
-            skill, missType = one, two
-        else
-            skill, missType = two, four
-        end
-
-        if (victimid == UnitGUID("player")) then
-            -- incoming miss events
-            if (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                XM:Display_Event(missType.."INC", missType, nil, nil, source, victim, nil)
-            else
-                if (missType == "REFLECT") then
-                    tinsert(ReflectTable, {TARGET = sourceid, SPELL = skill})
-                end
-                XM:Display_Event(missType.."INC", missType, nil, nil, source, victim, skill)
-            end
-            --pass events to swing timer
-            if (XMSWING and missType == "PARRY") then
-                XMSWING:ParryCheck()
-            end
-            if (XM.player.className == "WARRIOR") then
-                XM:MISSINC_WARRIOR(event, source, victim, skill, missType)
-            elseif (XM.player.className == "DEATHKNIGHT") then
-                XM:MISSINC_DEATHKNIGHT(event, source, victim, skill, missType)
-            end
-
-        elseif (sourceid == UnitGUID("player")) then
-            -- outgoing miss events
-            if (strfind(event, "SWING")) then
-                --check unnamed damage for extra attacks
-                if (#ExtraAttack > 0) then
-                    XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, ExtraAttack[1])
-                    tremove(ExtraAttack, 1)
-                else
-                    if (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) and (XMSWING.HAND[1].TIMELEFT <= XMSWING.HAND[2].TIMELEFT) then
-                        XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, XM.db["MHCHAR"])
-                    elseif (XMSWING) and (XMSWING.HAND[2].STARTSPEED > 0) then
-                        XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, XM.db["OHCHAR"])
-                    else
-                        XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, nil)
-                    end
-                end
-            elseif (strfind(event, "RANGE")) then
-                XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, nil)
-            else
-                if (#NextSpellCheck > 0) then
-                    for key, value in pairs(NextSpellCheck) do
-                        if (value == skill) then
-                            tremove(NextSpellCheck,key)
-                        end
-                    end
-                end
-                XM:Display_Event(missType.."OUT", missType, nil, nil, source, victim, skill)
-            end
-            if (XM.player.className == "WARRIOR") then
-                XM:MISSOUT_WARRIOR(event, source, victim, skill, missType)
-            elseif (XM.player.className == "DEATHKNIGHT") then
-                XM:MISSOUT_DEATHKNIGHT(event, source, victim, skill, missType)
-            end
-
-        elseif (playerpetid and victimid == playerpetid) then
-            -- incoming pet miss events
-            if (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                XM:Display_Event("PET"..missType.."INC", missType.."("..PET..")", nil, nil, source, victim, nil)
-            else
-                XM:Display_Event("PET"..missType.."INC", missType.."("..PET..")", nil, nil, source, victim, skill)
-            end
-
-        elseif (playerpetid and sourceid == playerpetid) then
-            -- outgoing pet miss events
-            if (strfind(event, "SWING") or strfind(event, "RANGE")) then
-                XM:Display_Event("PETMISSOUT", PET.." "..missType, nil, nil, source, victim, nil)
-            else
-                XM:Display_Event("PETMISSOUT", PET.." "..missType, nil, nil, source, victim, skill)
-            end
-
-        elseif (#ReflectTable >= 1) then
-            -- reflected events
-            if (ReflectTable[1].TARGET == sourceid and ReflectTable[1].SPELL == skill) then
-                XM:Display_Event(missType.."OUT", "("..XM.locale["REFLECT"]..") "..missType, nil, nil, source, victim, skill)
-                tremove(ReflectTable,1)
-            end
-        end
-
-
-    elseif (strfind(event, "_DIED") or strfind(event, "_DESTROYED")) and (sourceid == playerid) then
-        --your killing blows
-        XM:Display_Event("KILLBLOW", XM.locale["KILLINGBLOW"], nil, nil, source, victim, nil)
-
-    -- elseif (strfind(event, "_ENERGIZE")) then
-        -- -- power gain events
-        -- if strfind(event, "SWING") then
-        --     skill, amount, power = "Melee", one, XM.powerNames[(two)]
-        -- elseif strfind(event, "ENVIRONMENTAL") then
-        --     skill, amount, power = one, two, XM.powerNames[(three)]
-        -- else
-        --     skill, amount, power = two, four, XM.powerNames[(five)]
-        -- end
-        --
-        -- --incoming gains
-        -- if (victimid == UnitGUID("player")) then
-        --     --mana filter
-        --     if (amount > XM.db["MANAFILTERINC"]) then
-        --         --XM:Display_Event("POWERGAIN", "+"..amount.." "..power, nil, nil, source, victim, skill)
-        --     end
-        -- end
-
-    -- elseif (strfind(event, "_DRAIN") or strfind(event, "_LEECH")) then
-        -- power loss events
-        -- if strfind(event, "SWING") then
-        --     skill, amount, power, extra = "Melee", one, XM.powerNames[(two)], three
-        -- elseif strfind(event, "ENVIRONMENTAL") then
-        --     skill, amount, power, extra = one, two, XM.powerNames[(three)], four
-        -- else
-        --     skill, amount, power, extra = two, four, XM.powerNames[(five)], six
-        -- end
-        --
-        -- --incoming drains
-        -- if (victimid == UnitGUID("player")) then
-        --     if (extra) then
-        --         if (extra > 0) then
-        --             XM:Display_Event("POWERGAIN", "-"..amount.." - "..extra.." "..power, nil, nil, source, victim, skill)
-        --         else
-        --             XM:Display_Event("POWERGAIN", "-"..amount.." "..power, nil, nil, source, victim, skill)
-        --         end
-        --     else
-        --         XM:Display_Event("POWERGAIN", "-"..amount.." "..power, nil, nil, source, victim, skill)
-        --     end
-        -- end
-
-    elseif (strfind(event, "_EXTRA_ATTACKS") and victimid == UnitGUID("player")) then
-        if strfind(event, "SWING") then
-            skill, amount = "Melee", one
-        elseif strfind(event, "ENVIRONMENTAL") then
-            skill, amount = one, two
-        else
-            skill, amount = two, four
-        end
-
-        if (amount > 1) then
-            XM:Display_Event("EXECUTE", amount, nil, nil, victim, victim, skill)
-        else
-            XM:Display_Event("EXECUTE", "", nil, nil, victim, victim, skill)
-        end
-        local i = 1
-        while (i <= amount) do
-            tinsert(ExtraAttack, skill)
-            i = i + 1
-        end
-        --but can't show sword spec perfectly because it shows in combat log as 2 different forms
-
+    elseif (strfind(event, "_DIED") or strfind(event, "_DESTROYED")) and srcGUID == XM.player.id then
+        XM:Display_Event("KILLBLOW", XM.locale["KILLINGBLOW"], nil, nil, srcName, dstName, nil)
     elseif (strfind(event, "_INTERRUPT")) then
-
         if strfind(event, "SWING") then
-            skill, extra = "Melee", two
+            extra = two
         elseif strfind(event, "ENVIRONMENTAL") then
-            skill, extra = one, three
+            extra = three
         else
-            skill, extra = two, five
+            extra = five
         end
 
-        if (extra) then
+        if extra then
             extra = XM.locale["INTERRUPT"].." "..extra
         else
             extra = XM.locale["INTERRUPT"]
         end
 
-        --incoming interrupts
-        if (victimid == UnitGUID("player")) then
-            XM:Display_Event("INTERRUPTINC", extra, nil, nil, source, victim, skill)
-        --outgoing interrupts
-        elseif (sourceid == UnitGUID("player")) then
-            XM:Display_Event("INTERRUPTOUT", extra, nil, nil, source, victim, skill)
+        if dstGUID == XM.player.id then
+            XM:Display_Event("INTERRUPTINC", extra, nil, nil, srcName, dstName, skill)
+        elseif srcGUID == XM.player.id then
+            XM:Display_Event("INTERRUPTOUT", extra, nil, nil, srcName, dstName, skill)
         end
-
-    elseif (victimid == UnitGUID("player")) then
+    elseif dstGUID == XM.player.id then
         -- buffs and debuffs
         if strfind(event, "SWING") then
-            skill, extra, amount = "Melee", two, three
+            extra, amount = two, three
         elseif strfind(event, "ENVIRONMENTAL") then
-            skill, extra, amount = one, two, three
+            extra, amount = two, three
         else
-            skill, extra, amount = two, four, five
+            extra, amount = four, five
         end
 
         if (strfind(event, "AURA_APPLIED_DOSE")) then
             if (extra == "BUFF") then
-                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]"..amount, nil, nil, source, victim, nil)
+                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]"..amount, nil, nil, srcName, dstName, nil)
             else
-                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]"..amount, nil, nil, source, victim, nil)
+                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]"..amount, nil, nil, srcName, dstName, nil)
             end
-            if (XMSWING) then XMSWING:SpeedCheck(false, 0) end
-
         elseif (strfind(event, "AURA_REMOVED_DOSE")) then
             if (extra == "BUFF") then
-                XM:Display_Event("BUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFFADE"]).."]"..amount, nil, nil, source, victim, nil)
+                XM:Display_Event("BUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFFADE"]).."]"..amount, nil, nil, srcName, dstName, nil)
             else
-                XM:Display_Event("DEBUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFFADE"]).."]"..amount, nil, nil, source, victim, nil)
+                XM:Display_Event("DEBUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFFADE"]).."]"..amount, nil, nil, srcName, dstName, nil)
             end
-            if (XMSWING) then XMSWING:SpeedCheck(false, 0) end
-
         elseif (strfind(event, "AURA_APPLIED")) then
             if (extra == "BUFF") then
-                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, source, victim, nil)
+                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, srcName, dstName, nil)
             else
-                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, source, victim, nil)
+                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, srcName, dstName, nil)
             end
         end
-
     elseif (strfind(event, "AURA_REFRESH")) then
             if (strfind(event, "SWING")) then
-                skill, extra = "Melee", two
+                extra = two
             elseif (strfind(event, "ENVIRONMENTAL")) then
-                skill, extra = one, two
+                extra = two
             else
-                skill, extra = two, four
+                extra = four
             end
 
             if (extra == "BUFF") then
-                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, source, victim, nil)
+                XM:Display_Event("BUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"]).."]", nil, nil, srcName, dstName, nil)
             else
-                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, source, victim, nil)
+                XM:Display_Event("DEBUFFGAIN", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"]).."]", nil, nil, srcName, dstName, nil)
             end
-
-            if (XMSWING) then XMSWING:SpeedCheck(false, 0) end
-
     elseif (strfind(event, "AURA_REMOVED")) then
         if strfind(event, "SWING") then
-            skill, extra = "Melee", two
+            extra = two
         elseif strfind(event, "ENVIRONMENTAL") then
-            skill, extra = one, two
+            extra = two
         else
-            skill, extra = two, four
+            extra = four
         end
 
         if (extra == "BUFF") then
-            XM:Display_Event("BUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFFADE"]).."]", nil, nil, source, victim, nil)
+            XM:Display_Event("BUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFFADE"]).."]", nil, nil, srcName, dstName, nil)
         else
-            XM:Display_Event("DEBUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFFADE"]).."]", nil, nil, source, victim, nil)
+            XM:Display_Event("DEBUFFFADE", "["..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFFADE"]).."]", nil, nil, srcName, dstName, nil)
         end
+    elseif srcGUID == XM.player.id then
+        displayFrame = 'SPELLOUT'
 
-    elseif (sourceid == UnitGUID("player")) then
-        -- 'other' spellcasting
-        if (strfind(event, "_CAST_SUCCESS")) then
-            if strfind(event, "SWING") then
-                skill = "Melee"
-            elseif strfind(event, "ENVIRONMENTAL") then
-                skill = one
-            else
-                skill = two
-            end
-
-            for key, value in pairs(XM.SPELLTABLE) do
-                if (skill == value.SPELL) then
-                    local foundspell = false
+        if strfind(event, "_CAST_SUCCESS") then
+            for _, v in pairs(XM.SPELLTABLE) do
+                if skill == v.SPELL then
+                    local exists = false
                     if (#NextSpellCheck > 0) then
-                        for key2, value2 in pairs(NextSpellCheck) do
-                            if (value.DEBUFF == value2.DEBUFF) then
-                                foundspell = true
+                        for _, nextSpell in pairs(NextSpellCheck) do
+                            if (v.DEBUFF == nextSpell.DEBUFF) then
+                                exists = true
                             end
                         end
                     end
-                    if (foundspell == false) then
-                        tinsert(NextSpellCheck, value)
+
+                    if not exists then
+                        XM:DefaultChatMessage('insert NextSpellCheck: %s', skill)
+                        tinsert(NextSpellCheck, v)
                     end
                 end
             end
 
-            for key,value in pairs(NextSpellCheck) do
-                if (skill == value.DEBUFF and value.COUNT > 1 and XM:GetDebuffCount(value.DEBUFF) == value.COUNT) then
-                    XM:Display_Event("SPELLOUT", "["..XM:GetDebuffCount(value.DEBUFF).."]", nil, nil, source, victim, skill)
-                    tremove(NextSpellCheck,key)
+            for k, v in pairs(NextSpellCheck) do
+                if skill == v.DEBUFF then
+                    local debuffCount = XM:GetDebuffCount(v.DEBUFF)
+
+                    if v.COUNT > 1 and debuffCount == v.COUNT then
+                        XM:Display_Event(displayFrame, "["..debuffCount.."]", nil, nil, srcName, dstName, skill)
+
+                        tremove(NextSpellCheck, k)
+                    end
                 end
             end
-
-            -- --create special skill table arrays here ...
-            -- if (skill == "Shield Block" or skill == "Holy Shield") then
-            --     XM:Display_Event("BLOCKINC", "+", nil, nil, source, victim, skill)
-            --     XMSHIELD:ShieldStart()
-            -- elseif (skill == "Bloodrage") then
-            --     XM:Display_Event("SPELLINC", "-711 ", nil, nil, XM.player.name, XM.player.name, skill)
-            -- end
-
-        elseif (victimid == UnitGUID("target") and strfind(event, "AURA_APPLIED")) then
-            if strfind(event, "SWING") then
-                skill = "Melee"
-            elseif strfind(event, "ENVIRONMENTAL") then
-                skill = one
-            else
-                skill = two
-            end
-
-            if (#NextSpellCheck > 0) then
-                for key, value in pairs(NextSpellCheck) do
-                    if (skill == value.DEBUFF) then
-                        if (value.COUNT > 1) then
-                            XM:Display_Event("SPELLOUT", "["..XM:GetDebuffCount(value.DEBUFF).."]", nil, nil, source, victim, skill)
+        elseif dstGUID == UnitGUID("target") and strfind(event, "AURA_APPLIED") then
+            if #NextSpellCheck > 0 then
+                for k, v in pairs(NextSpellCheck) do
+                    if skill == v.DEBUFF then
+                        if v.COUNT > 1 then
+                            XM:Display_Event(displayFrame, "["..XM:GetDebuffCount(v.DEBUFF).."]", nil, nil, srcName, dstName, skill)
                         else
-                            XM:Display_Event("SPELLOUT", "", nil, nil, source, victim, skill)
+                            XM:Display_Event(displayFrame, "", nil, nil, srcName, dstName, skill)
                         end
-                        tremove(NextSpellCheck,key)
+
+                        tremove(NextSpellCheck, k)
                     end
                 end
             end
-
-        --spells that don't fire the cast_success event
-        elseif (strfind(event, "_CAST_START")) then
-            if strfind(event, "SWING") then
-                skill = "Melee"
-            elseif strfind(event, "ENVIRONMENTAL") then
-                skill = one
-            else
-                skill = two
-            end
         end
-
-    elseif (victimid == UnitGUID("target") and strfind(event, "AURA_APPLIED")) then
-        if strfind(event, "SWING") then
-            skill = "Melee"
-        elseif strfind(event, "ENVIRONMENTAL") then
-            skill = one
-        else
-            skill = two
-        end
+    elseif dstGUID == UnitGUID("target") and strfind(event, "AURA_APPLIED") then
         if (#NextSpellCheck > 0) then
-            for key, value in pairs(NextSpellCheck) do
-                if (skill == value.DEBUFF) then
-                    if (value.COUNT > 1) then
-                        XM:Display_Event("SPELLOUT", "["..XM:GetDebuffCount(value.DEBUFF).."]", nil, nil, source, victim, skill)
+            for k, v in pairs(NextSpellCheck) do
+                if skill == v.DEBUFF then
+                    if v.COUNT > 1 then
+                        XM:Display_Event("SPELLOUT", "["..XM:GetDebuffCount(v.DEBUFF).."]", nil, nil, srcName, dstName, skill)
                     else
-                        XM:Display_Event("SPELLOUT", "", nil, nil, source, victim, skill)
+                        XM:Display_Event("SPELLOUT", "", nil, nil, srcName, dstName, skill)
                     end
-                    tremove(NextSpellCheck,key)
+
+                    tremove(NextSpellCheck, k)
                 end
             end
         end
     end
-end
-
-
-function XM:GetDebuffLeft(inpskill)
-    local i = 1
-    local debuffName,debuffLeft
-    --gather all target debuffs
-    while (i <= 40) do
-        debuffName,_,_,_,_,_,debuffLeft = UnitDebuff("target", i)
-        if (debuffName) and (debuffName == inpskill) then
-            i = 41
-        elseif (debuffName) then
-            i = i + 1
-        else
-            i = 41
-        end
-    end
-    if (not debuffLeft) then debuffLeft = 0 end
-    return debuffLeft
 end
 
 
@@ -1017,25 +778,7 @@ function XM:GetDebuffCount(inpskill)
 end
 
 
-function XM:BlizzardCombatTextEvent(_,arg1, arg2, arg3)
-    --handle blizzard special combat events
-
-    --active skills (execute, overpower, revenge, victory rush)
-    if (arg1 == "SPELL_ACTIVE") then
-        --don't show blizzard execute or overpower
-        if (arg2 == "Execute" or arg2 == "Overpower") then
-        --revenge doesn't trigger by blizzard event
-        --victory rush should be the only active spell remaining
-        else
-            XM:Display_Event("EXECUTE", arg2, true, nil, XM.player.name, XM.player.name, nil)
-        end
-    end
-end
-
-
-function XM:Display_Event(event, msg, crit, element, source, victim, skill)
-    --display event to show messages
-
+function XM:Display_Event(event, msg, crit, element, srcName, dstName, skill)
     --if event is enabled
     if (XM.db[event] and XM.db[event] > 0) then
         --get frame number
@@ -1075,9 +818,9 @@ function XM:Display_Event(event, msg, crit, element, source, victim, skill)
         --shorten target name (-1 = no show, 0 = full name, 1 = truncate, 2 = abbreviate)
         local targetinterest
         if (strfind(event, "OUT")) then
-            targetinterest = victim
+            targetinterest = dstName
         else
-            targetinterest = source
+            targetinterest = srcName
         end
 
         if (targetinterest) and (targetinterest ~= "") and (targetinterest ~= XM.player.name) then
@@ -1090,7 +833,7 @@ function XM:Display_Event(event, msg, crit, element, source, victim, skill)
             end
         end
 
-        XM:DisplayText(dispframe, msg, rgbcolor, crit, victim, icon)
+        XM:DisplayText(dispframe, msg, rgbcolor, crit, dstName, icon)
     end
 end
 
@@ -1112,16 +855,11 @@ end
 
 function XM:RegisterXMEvents()
     XM:RegisterEvent("UNIT_HEALTH")
-    XM:RegisterEvent("UNIT_MANA", "UnitPower")
-    XM:RegisterEvent("UNIT_ENERGY", "UnitPower")
-    XM:RegisterEvent("UNIT_RAGE", "UnitPower")
     XM:RegisterEvent("PLAYER_REGEN_ENABLED")
     XM:RegisterEvent("PLAYER_REGEN_DISABLED")
-    XM:RegisterEvent("COMBAT_TEXT_UPDATE", "BlizzardCombatTextEvent")
     XM:RegisterEvent("CHAT_MSG_LOOT")
     XM:RegisterEvent("CHAT_MSG_MONEY")
 
-    --combo point gain
     if (XM.db["COMBOPT"] and XM.db["COMBOPT"] > 0) then
         XM:RegisterEvent("PLAYER_COMBO_POINTS")
     end
