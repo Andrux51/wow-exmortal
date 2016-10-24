@@ -33,4 +33,5 @@ xm_spellnames.lua
 Settings\xm_defaults.lua
 Settings\xm_options.lua
 
+xm_log_event_handler.lua
 xm_animation.lua

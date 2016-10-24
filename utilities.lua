@@ -23,71 +23,39 @@ function XM:PadLeft(str, chars)
     return result
 end
 
---determines number of talent points (returns nil if no talent found, or number)
-function XM:TalentCheck(inptalent, inptarget)
-    --inptalent: [string] - name of talent as it appears in the tab
-    --inptarget: [boolean] - false for "player", true for "inspect"
+function XM:ShortenString(strString, shorttype)
+    local cTRUNCATE, cABBREVIATE = 1, 2
 
-    if (not inptarget) then inptarget = false end
-    local nametalent,iconpath,tier,column,currentrank,maxrank,isexceptional,meetsprereq
-    local i,j = 1,1
-    while (i + j >= 2) do
-        nametalent, iconpath, tier, column, currentrank, maxrank, isexceptional, meetsprereq = GetTalentInfo(i, j, inptarget)
-        if (not nametalent) then
-            if (i == 1) and (j == 1) then
-                i,j = 0,0
-                return nil
-            else
-                i = i + 1
-                j = 1
-            end
-        elseif (nametalent == inptalent) then
-            i,j = 0,0
-            return currentrank
-        else
-            j = j + 1
-        end
-    end
-end
-
---combined function to determine if a player spell exists, and number of talent points (returns nil if spell or talent doesnt exist, or number of talent points)
-function XM:SpellTalentCheck(spell, inptalent, inptarget)
-    if not inptarget then inptarget = false end
-    if not inptalent then inptalent = false end
-
-    if GetSpellInfo(spell) then
-        if (not inptalent) then
-            --make exceptions for talents named differently from spells
-            for k, v in pairs(XM.TALENTTABLE) do
-                if (k == spell) then
-                    inptalent = v
-                end
-            end
-        end
-
-        if (inptalent == nil) then
-            return nil
-        else
-            return XM:TalentCheck(inptalent, inptarget)
+    if (strlen(strString) > XM.db["SHORTLENGTH"] and shorttype) then
+        if (shorttype == cTRUNCATE) then
+            return strsub(strString, 1, XM.db["SHORTLENGTH"])..XM.db["SHORTSTRING"]
+        elseif (shorttype == cABBREVIATE) then
+            return gsub(gsub(gsub(strString," of ","O"),"%s",""), "(%u)%l*", "%1")
         end
     end
 
-    return nil
+    return strString
 end
 
-XM.powerNames = {
-    [-2] = "Health",
-    [0] = "Mana",
-    [1] = "Rage",
-    [2] = "Focus",
-    [3] = "Energy",
-    --[4] = "Pet Happiness",
-    [5] = "Runes",
-    [6] = "Runic Power"
-    --[7] = "Soul Shards"
-    --[8] = "Eclipse"
-    --[9] = "Holy Power"
-}
+function XM:TruncateAmount(amount)
+    result = tostring(amount)
+
+    if(strlen(result) > 8) then -- 100m
+        return strsub(result, 1, 3).."m"
+    elseif(strlen(result) > 7) then -- 10.1m
+        return strsub(result, 1, 2).."."..strsub(result,3,3).."m"
+    elseif(strlen(result) > 6) then -- 1.2m
+        return strsub(result, 1, 1).."."..strsub(result, 2, 2).."m"
+    elseif(strlen(result) > 5) then -- 100k
+        return strsub(result, 1, 3).."k"
+    elseif(strlen(result) > 4) then -- 10.1k
+        return strsub(result, 1, 2).."."..strsub(result,3,3).."k"
+    elseif(strlen(result) > 3) then -- 1.2k
+        return strsub(result, 1, 1).."."..strsub(result, 2, 2).."k"
+    end
+
+    return result
+end
 
 XM.elements ={
     [1] = "physical",
