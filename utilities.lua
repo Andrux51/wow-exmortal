@@ -68,4 +68,5 @@ XM.elements ={
     [32] = "shadow",
     [40] = "shadowstorm",
     [64] = "arcane",
+    [127] = "chaos",
 }

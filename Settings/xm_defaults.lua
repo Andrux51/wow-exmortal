@@ -322,6 +322,7 @@ XM.configDefaults = {
         ["SHADOW"] = {r = 0.5, g = 0.5, b = 0.5, a = 1.0}, 		--*gray
         ["SHADOWSTORM"] = {r = 0.5, g = 0.5, b = 0.5, a = 1.0},		--*gray
         ["ARCANE"] = {r = 0.5, g = 0, b = 1.0, a = 1.0}, 		--*purple
+        ["CHAOS"] = {r = 1.0, g = 0.2, b = 1.0, a = 1.0}, 		--*pink
     },
 
     --frame settings
