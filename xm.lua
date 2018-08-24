@@ -181,7 +181,7 @@ function XM:CHAT_MSG_LOOT(_, ...)
             XM:Display_Event("GETLOOT",
                 '+'..quantity..
                 ' '..itemNameColored..
-                ' ('..XM:ColorizeString(inventoryCount+quantity,'FFFFFF')..')'
+                ' ('..inventoryCount+quantity..')'
             )
         end
     end
