@@ -11,6 +11,12 @@ XM.reflectTable = {}
 -- "my combat events" (incoming/outgoing)
 -- "party combat events"
 
+-- TODO: add features
+-- 1. combined damage/healing (eye beams is a garbage-fest)
+-- 2. when something aggros me and how many npc's have me targeted (not sure how possible this is)
+-- 3. Demon Hunter specific - show when fury gained, show when fury % 40 > 0 (can cast Chaos Strike)
+-- 4. ability to filter out frequent effects (is leech annoying or useful?)
+
 -- http://wow.gamepedia.com/COMBAT_LOG_EVENT
 function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     local timestamp, event, hideCaster, sourceGuid, sourceName, sourceFlags,
