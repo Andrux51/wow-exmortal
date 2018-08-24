@@ -20,6 +20,7 @@ XM.configDefaults = {
     ["MANAFILTERINC"] = 1,
     ["SHORTLENGTH"] = 10,
     ["CRITSIZE"] = 120,
+    ["COUNTBANKITEMS"] = true,
 
     --all events (and which frame to put them in)
     ["LOWHP"] = 2,
@@ -32,6 +33,7 @@ XM.configDefaults = {
     ["SKILLGAIN"] = 10,
     ["KILLBLOW"] = 0,
     ["REPGAIN"] = 2,
+    ["XPGAIN"] = 2,
     ["HONORGAIN"] = 2,
     ["SPELLACTIVE"] = 4,
 
@@ -99,6 +101,7 @@ XM.configDefaults = {
         ["SKILLGAIN"] = -1,
         ["KILLBLOW"] = -1,
         ["REPGAIN"] = -1,
+        ["XPGAIN"] = -1,
         ["HONORGAIN"] = -1,
         ["SPELLACTIVE"] = -1,
 
@@ -163,6 +166,7 @@ XM.configDefaults = {
         ["SKILLGAIN"] = -1,
         ["KILLBLOW"] = -1,
         ["REPGAIN"] = -1,
+        ["XPGAIN"] = -1,
         ["HONORGAIN"] = -1,
         ["SPELLACTIVE"] = -1,
 
@@ -250,8 +254,9 @@ XM.configDefaults = {
         ["SKILLGAIN"] = {r = 0.2, g = 0.2, b = 1.0, a = 1.0}, 	--*blue
         ["KILLBLOW"] = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}, 	--*white
         ["REPGAIN"] = {r = 0.8, g = 0.5, b = 1.0, a = 1.0}, 	--*light purple
+        ["XPGAIN"] = {r = 0.7, g = 0.4, b = 1.0, a = 1.0}, 	    --*purple
         ["HONORGAIN"] = {r = 1.0, g = 0.5, b = 0.0, a = 1.0}, 	--*orange
-        ["SPELLACTIVE"] = {r = 1.0, g = 0.5, b = 0.0, a = 1.0},     --*orange
+        ["SPELLACTIVE"] = {r = 1.0, g = 0.5, b = 0.0, a = 1.0}, --*orange
 
         ["HITINC"] = {r = 1.0, g = 1.0, b = 1.0, a = 1.0}, 		--*white
         ["SPELLINC"] = {r = 1.0, g = 1.0, b = 0.0, a = 1.0}, 	--*yellow

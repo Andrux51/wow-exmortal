@@ -130,6 +130,14 @@ XM.OPTIONS = {
             		func = function() XM:ResetDefaults() end,
                     confirm = true,
             		confirmText = XM.locale["confirm_reset"]
+                },
+                COUNTBANKITEMS = {
+                    name = 'Show Bank Count',
+                    desc = 'Show banked quantity when looting',
+                    type = 'toggle',
+                    order = 121,
+                    get = function(info) return XM.db["COUNTBANKITEMS"] end,
+                    set = function(info, v) XM.db["COUNTBANKITEMS"] = v end,
                 }
             }
         },
@@ -204,6 +212,15 @@ XM.OPTIONS.args.FRAME.args.REPGAIN = {
     order = 207,
     get = function(info) return XM.db["REPGAIN"] end,
     set = function(info, v) XM.db["REPGAIN"] = v end,
+}
+
+XM.OPTIONS.args.FRAME.args.XPGAIN = {
+    name = "XP Gain",
+    desc = "Experience Gain Messages",
+    type = "range", min = 0, max = 10, step = 1,
+    order = 207,
+    get = function(info) return XM.db["XPGAIN"] end,
+    set = function(info, v) XM.db["XPGAIN"] = v end,
 }
 
 XM.OPTIONS.args.FRAME.args.HONORGAIN = {
@@ -1401,6 +1418,26 @@ XM.OPTIONS.args.COLORS.args.REPGAIN = {
         XM.db.COLOR_TABLE["REPGAIN"].g = g
         XM.db.COLOR_TABLE["REPGAIN"].b = b
         XM.db.COLOR_TABLE["REPGAIN"].a = a
+    end,
+}
+
+XM.OPTIONS.args.COLORS.args.XPGAIN = {
+    name = "XP Gain",
+    desc = "Experience Gain Messages",
+    type = "color",
+    order = 507,
+    get = function(info)
+        local r = XM.db.COLOR_TABLE["XPGAIN"].r
+        local g = XM.db.COLOR_TABLE["XPGAIN"].g
+        local b = XM.db.COLOR_TABLE["XPGAIN"].b
+        local a = XM.db.COLOR_TABLE["XPGAIN"].a
+        return r,g,b,a
+    end,
+    set = function(info, r,g,b,a)
+        XM.db.COLOR_TABLE["XPGAIN"].r = r
+        XM.db.COLOR_TABLE["XPGAIN"].g = g
+        XM.db.COLOR_TABLE["XPGAIN"].b = b
+        XM.db.COLOR_TABLE["XPGAIN"].a = a
     end,
 }
 

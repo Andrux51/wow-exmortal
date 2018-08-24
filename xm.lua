@@ -22,20 +22,25 @@ local PlayerLastMPFull = 100
 function XM:OnInitialize()
     XM.locale = LibStub("AceLocale-3.0"):GetLocale("XM")
 
-    -- bark addon name into chat on load
-    XM:DefaultChatMessage('%s v%s initialized', XM.locale.addonName, XM.addonVersion)
+    -- bark addon name into chat on load (looks like no longer good practice v8.0.0)
+    -- XM:DefaultChatMessage(XM.locale.addonName..' v'..XM.addonVersion..' initialized')
 
     XM:SetDefaultModuleState(false)
 
     local db = LibStub("AceDB-3.0"):New("eXMortalDB")
     XM.db = db.profile
 
-    --initialize DB for new characters
+    -- initialize DB for new characters
     if not XM.db["VERSION"] then
         print('Performing eXMortal first time setup')
 
+        -- TODO: look at this function sometime
         XM:ResetDefaults()
     end
+
+    -- ensure new config values don't break existing characters' SavedVariables
+    -- XM.configDefaults will always be the Source of Truth
+    XM:CheckDefaults(XM.configDefaults, XM.db)
 
     -- class id's:
     -- 1-WARRIOR, 2-PALADIN, 3-HUNTER, 4-ROGUE, 5-PRIEST, 6-DEATHKNIGHT
@@ -43,21 +48,19 @@ function XM:OnInitialize()
     XM.player.classNameLocalized, XM.player.className, XM.player.classID = UnitClass('player')
     XM.player.classColoredString = '|c'..RAID_CLASS_COLORS[XM.player.className].colorStr..XM.player.classNameLocalized..'|r'
 
-    --XM:DefaultChatMessage(RAID_CLASS_COLORS[XM.player.className].colorStr)
-
     --register slash command
     XM:RegisterChatCommand("xm", function() XM.configDialog:Open("eXMortal", configFrame) end)
 
-    --load shared media
+    -- load shared media
     XM:RegisterMedia()
 
-    --initialize animation frame
+    -- initialize animation frame
     XM:CreateAnimationFrame()
 
-    --initialize option frame
+    -- initialize option frame
     XM:InitOptionFrame()
 
-    --register events
+    -- register events
     XM:RegisterXMEvents()
 end
 
@@ -75,6 +78,22 @@ function XM:PLAYER_LOGIN()
     XM.player.id = UnitGUID("player")
 
     XM.player.name = UnitName("player")
+end
+
+function XM:CheckDefaults(src, dest)
+    for k, v in pairs(src) do
+        if type(v) == 'table' then
+            if dest[k] == nil then
+                dest[k] = v
+            end
+
+            XM:CheckDefaults(v, dest[k])
+        else
+            if dest[k] == nil then
+                dest[k] = v
+            end
+        end
+    end
 end
 
 function XM:ResetDefaults()
@@ -144,8 +163,8 @@ function XM:PLAYER_COMBO_POINTS()
 end
 
 function XM:CHAT_MSG_LOOT(_, ...)
-    message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
-    --print(message) -- looks like 'You receive item: [itemName]x2.'
+    local message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
+    --print(message) -- prints out 'You receive item: [itemName]x2.'
 
     if target == XM.player.name then
         -- itemLink style can be found in http://wowprogramming.com/docs/api_types
@@ -155,19 +174,41 @@ function XM:CHAT_MSG_LOOT(_, ...)
 
             local qualityColor, itemName = itemLink:match("\124c(.-)\124H.-%[(.+)%]")
 
-            --local itemName = itemLink:match("\124h%[(.+)%]\124h")
             local itemNameColored = XM:ColorizeString(itemName, qualityColor)
 
-            -- include the amount in bank here
-            local itemCount = GetItemCount(itemLink, true)
+            local inventoryCount = GetItemCount(itemLink, XM.db["COUNTBANKITEMS"])
 
-            XM:Display_Event("GETLOOT", string.format('+%s %s (%s)', quantity, itemNameColored, itemCount+quantity), nil, nil, XM.player.name, XM.player.name, nil)
+            XM:Display_Event("GETLOOT",
+                '+'..quantity..
+                ' '..itemNameColored..
+                ' ('..XM:ColorizeString(inventoryCount+quantity,'FFFFFF')..')'
+            )
         end
     end
 end
 
+function XM:CHAT_MSG_CURRENCY(_, ...)
+    local message, textMessage = ...
+    -- message like "You receive currency: [Ancient Mana] x4."
+
+    local currencyLink = message:match(".+(\124c.-\124h\124r)")
+    if currencyLink then
+        local currencyId = currencyLink:match(":(%d+)")
+
+        local quantity = message:match("\124r.-(%d+)") or 1
+
+        local qualityColor, currencyName = currencyLink:match("\124c(.-)\124H.-%[(.+)%]")
+
+        local currencyNameColored = XM:ColorizeString(currencyName, qualityColor)
+
+        local _, totalOwned = GetCurrencyInfo(currencyId)
+
+        XM:Display_Event("GETLOOT", string.format('+%s %s (%s)', quantity, currencyNameColored, totalOwned))
+    end
+end
+
 function XM:CHAT_MSG_MONEY(_, ...)
-    message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
+    local message, sender, language, channelString, target, flags, unknown, channelNumber, channelName, unknown, counter = ...
 
     --print(message) -- like "You loot 1 Gold, 10 Silver, 50 Copper"
     -- TODO: address "You loot 10 Gold"
@@ -216,30 +257,50 @@ function XM:CHAT_MSG_SKILL(_,arg1)
     XM:Display_Event("SKILLGAIN", skill..": "..rank, nil, nil, XM.player.name, XM.player.name, nil)
 end
 
-function XM:CHAT_MSG_COMBAT_FACTION_CHANGE(_,arg1)
-    --reputation gains
+function XM:CHAT_MSG_COMBAT_XP_GAIN(_, ...)
+    local message, sender, language, channelString, target, flags, unknown,
+        channelNumber, channelName, unknown, counter = ...
 
-    local repcheck = strfind(arg1, " ")
-    if (strsub(arg1, 1, repcheck - 1) == "Reputation") then
+    --print(message)
 
-        local rankstart = strfind(arg1, "by", -14) + 3
-        local rank = strsub(arg1, rankstart, strlen(arg1) - 1)
+    local amount, rested
 
-        local incdecstart = strfind(arg1, " ", ((-1)*strlen(rank)) - 15) + 1
+    amount = message:match(".-(%d+)")
 
-        local incdec = strsub(arg1, incdecstart, incdecstart)
-        if (incdec == "d") then
-            incdec = "-"
-        else
-            incdec = "+"
-        end
+    local msg = '+'..amount..' XP'
 
-        local factstart = strfind(arg1, "h") + 2
-        local factend = incdecstart - 2
-        local fact = strsub(arg1, factstart, factend)
+    if strfind(strupper(message), 'RESTED') then
+        rested = message:match("%(.-(%d+)")
 
-        XM:Display_Event("REPGAIN", incdec..rank.." "..fact, nil, nil, XM.player.name, XM.player.name, nil)
+        msg = msg..' (+'..rested..' rested)'
     end
+
+    XM:Display_Event("XPGAIN", msg, nil, nil, XM.player.name, XM.player.name, nil)
+end
+
+function XM:CHAT_MSG_COMBAT_FACTION_CHANGE(_, ...)
+    local message, sender, language, channelString, target, flags, unknown,
+        channelNumber, channelName, unknown, counter = ...
+    --print(message) -- message like "Reputation with Golden Lotus increased by 20. (10.0 bonus)"
+
+    local faction, incdec, amount, bonus
+
+    faction, incdec, amount = message:match("R.-(%u.+)%s(..c).-(%d+)")
+
+    local plusMinus = '+'
+    if strfind(strupper(incdec), 'DEC') then plusMinus = '-' end
+
+    local msg = plusMinus..amount.." "..faction
+
+    if strfind(strupper(message), 'BONUS') then
+        bonus = message:match("%(.-(%d+%.%d+)")
+
+        msg = msg..' (+'..bonus..' bonus)'
+    end
+
+    --print(faction) print(incdec) print(amount) print(bonus)
+
+    XM:Display_Event("REPGAIN", msg, nil, nil, XM.player.name, XM.player.name, nil)
 end
 
 function XM:GetDebuffCount(skillName)
@@ -329,20 +390,22 @@ function XM:UNIT_PET(_, ...)
 end
 
 function XM:RegisterXMEvents()
+    XM:RegisterEvent("PLAYER_LOGIN")
     XM:RegisterEvent("UNIT_HEALTH")
     XM:RegisterEvent("PLAYER_REGEN_ENABLED")
     XM:RegisterEvent("PLAYER_REGEN_DISABLED")
+
     XM:RegisterEvent("CHAT_MSG_LOOT")
     XM:RegisterEvent("CHAT_MSG_MONEY")
-    --XM:RegisterEvent("UNIT_PET")
+    XM:RegisterEvent("CHAT_MSG_CURRENCY")
+    XM:RegisterEvent("CHAT_MSG_SKILL")
+    XM:RegisterEvent("CHAT_MSG_COMBAT_XP_GAIN")
+    XM:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 
     if (XM.db["COMBOPT"] and XM.db["COMBOPT"] > 0) then
         XM:RegisterEvent("PLAYER_COMBO_POINTS")
     end
 
-    XM:RegisterEvent("PLAYER_LOGIN")
-    XM:RegisterEvent("CHAT_MSG_SKILL")
     XM:RegisterEvent("PLAYER_TARGET_CHANGED")
     XM:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    XM:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 end

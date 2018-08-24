@@ -14,8 +14,10 @@ XM.reflectTable = {}
 -- http://wow.gamepedia.com/COMBAT_LOG_EVENT
 function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     local timestamp, event, hideCaster, sourceGuid, sourceName, sourceFlags,
-        sourceRaidFlags, destGuid, destName, dstFlags, dstRaidFlags, one, two, three,
-        four, five, six, seven, eight, nine, ten = ...
+        sourceRaidFlags, destGuid, destName, dstFlags, dstRaidFlags, spellId, spellName, spellSchool,
+        suffixOne, suffixTwo, suffixThree, suffixsuffixOne, suffixFive, suffixSix, suffixSeven, suffixEight, suffixNine, suffixTen = CombatLogGetCurrentEventInfo()
+
+    local environmentType = spellId -- ENVIRONMENT event uses same prefix arg as spellId
 
     local skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush, missType, power, extra
 
@@ -34,7 +36,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     end
 
     if sourceGuid == XM.player.id then
-        --print('src- '..event)
+        -- print('src- '..event)
     elseif incoming then
         --print('dst- '..event)
     end
@@ -69,23 +71,25 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     if strfind(event, 'SWING') then
         skill = nil
     elseif strfind(event, "ENVIRONMENTAL") then
-        skill = one
+        skill = spellId
     else
-        skill = two
+        skill = spellName
     end
 
     if strfind(event, '_CAST_START') then
-        XM:HandleCastStart(skill, sourceName, destName)
+        if sourceGuid == XM.player.id or destGuid == XM.player.id then
+            XM:HandleCastStart(skill, incoming, sourceGuid, sourceName, destGuid, destName)
+        end
     elseif strfind(event, "_DAMAGE") then
-        XM:HandleDamageEvents(event, skill, incoming, sourceGuid, sourceName, destGuid, destName, one, two, three, four, five, six, seven, eight, nine, ten)
+        XM:HandleDamageEvents(event, skill, incoming, sourceGuid, sourceName, destGuid, destName, spellId, spellName, spellSchool, suffixOne, suffixTwo, suffixThree, suffixsuffixOne, suffixFive, suffixSix, suffixSeven)
     elseif (strfind(event, "_MISSED")) then
         -- miss events [miss, dodge, block, deflect, immune, evade, parry, resist, absorb, reflect]
         if strfind(event, "SWING") then
-            missType = one
+            missType = spellId
         elseif strfind(event, "ENVIRONMENTAL") then
-            missType = two
+            missType = spellName
         else
-            missType = four
+            missType = suffixOne
         end
         if (destGuid == XM.player.id) then
             if (strfind(event, "SWING") or strfind(event, "RANGE")) then
@@ -95,11 +99,6 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
                     tinsert(XM.reflectTable, {TARGET = sourceGuid, SPELL = skill})
                 end
                 XM:Display_Event(missType.."INC", missType, nil, nil, sourceName, destName, skill)
-            end
-            if (XM.player.className == "WARRIOR") then
-                XM:MISSINC_WARRIOR(event, sourceName, destName, skill, missType)
-            elseif (XM.player.className == "DEATHKNIGHT") then
-                XM:MISSINC_DEATHKNIGHT(event, sourceName, destName, skill, missType)
             end
         elseif (sourceGuid == XM.player.id) then
             if (strfind(event, "SWING")) then
@@ -115,11 +114,6 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
                     end
                 end
                 XM:Display_Event(missType.."OUT", missType, nil, nil, sourceName, destName, skill)
-            end
-            if (XM.player.className == "WARRIOR") then
-                XM:MISSOUT_WARRIOR(event, sourceName, destName, skill, missType)
-            elseif (XM.player.className == "DEATHKNIGHT") then
-                XM:MISSOUT_DEATHKNIGHT(event, sourceName, destName, skill, missType)
             end
         elseif (XM.player.pet.id and destGuid == XM.player.pet.id) then
             -- incoming pet miss events
@@ -144,7 +138,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
         end
     elseif (strfind(event, "DAMAGE_")) then
         -- damage shields or split damage
-        skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = two, four or 0, XM.elements[(six)], seven, eight, nine, ten, eleven, twelve
+        skill, amount, element, amountResist, amountBlock, amountAbsorb, isCrit, isGlance, isCrush = spellName, suffixOne or 0, XM.elements[(suffixThree)], suffixsuffixOne, suffixFive, suffixSix, suffixSeven, eleven, twelve
 
         local text = XM:TruncateAmount(amount)
         if (isCrush) then
@@ -171,20 +165,18 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
         end
     elseif strfind(event, "_HEAL") then
         if strfind(event, "SWING") then
-            amount, isCrit, extra = one, four, two
+            amount, isCrit, extra = spellId, suffixOne, spellName
         elseif strfind(event, "ENVIRONMENTAL") then
-            amount, isCrit, extra = two, five, three
+            amount, isCrit, extra = spellName, suffixTwo, spellSchool
         else
-            amount, isCrit, extra = four, seven, five
+            amount, isCrit, extra = suffixOne, suffixsuffixOne, suffixTwo
         end
 
         local healtext = XM:TruncateAmount(amount)
         local healamt = amount
-        if (extra) then
-            if (extra > 0) then
-                healamt = amount - extra
-                healtext = XM:TruncateAmount(healamt).." {"..XM:TruncateAmount(extra).."}"
-            end
+        if extra and type(extra) == 'number' and extra > 0 then
+            healamt = amount - extra
+            healtext = XM:TruncateAmount(healamt).." {"..XM:TruncateAmount(extra).."}"
         end
 
         if (XM.db["SHOWHOTS"] or not strfind(event, "SPELL_PERIODIC")) then
@@ -194,7 +186,7 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
             end
 
             if (destGuid == XM.player.id) then
-                if (healamt > XM.db["HEALFILTERINC"]) then
+                if healamt and XM.db["HEALFILTERINC"] and healamt > XM.db["HEALFILTERINC"] then
                     XM:Display_Event("HEALINC", "+"..healtext, isCrit, nil, sourceName, destName, skill)
                 end
             elseif (sourceGuid == XM.player.id) then
@@ -220,11 +212,11 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
         local text = XM.locale["INTERRUPT"]
 
         if strfind(event, "SWING") then
-            extra = two
+            extra = spellName
         elseif strfind(event, "ENVIRONMENTAL") then
-            extra = three
+            extra = spellSchool
         else
-            extra = five
+            extra = suffixTwo
         end
 
         if extra then text = text.." "..extra end
@@ -237,11 +229,11 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     -- elseif destGuid == XM.player.id then
     --     -- buffs and debuffs
     --     if strfind(event, "SWING") then
-    --         extra, amount = one, two
+    --         extra, amount = spellId, spellName
     --     elseif strfind(event, "ENVIRONMENTAL") then
-    --         extra, amount = two, three
+    --         extra, amount = spellName, spellSchool
     --     else
-    --         extra, amount = four, five
+    --         extra, amount = suffixOne, suffixTwo
     --     end
     --
     --     if (strfind(event, "AURA_APPLIED_DOSE")) then
@@ -264,39 +256,9 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     --         end
     --     end
     elseif strfind(event, "AURA_REFRESH") or strfind(event, "AURA_APPLIED") then
-            if strfind(event, "SWING") then
-                extra, amount = one, two
-            elseif strfind(event, "ENVIRONMENTAL") then
-                extra, amount = two, three
-            else
-                extra, amount = four, five
-            end
-
-            amountDisplay = ''
-            if amount then amountDisplay = ' '..amount end
-
-            if (extra == "BUFF") then
-                XM:Display_Event("BUFFGAIN", "+"..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFGAIN"])..amountDisplay, nil, nil, sourceName, destName, nil)
-            else
-                XM:Display_Event("DEBUFFGAIN", "+"..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFGAIN"])..amountDisplay, nil, nil, sourceName, destName, nil)
-            end
-    elseif (strfind(event, "AURA_REMOVED")) then
-        if strfind(event, "SWING") then
-            extra, amount = one, two
-        elseif strfind(event, "ENVIRONMENTAL") then
-            extra, amount = two, three
-        else
-            extra, amount = four, five
-        end
-
-        amountDisplay = ''
-        if amount then amountDisplay = ' '..amount end
-
-        if (extra == "BUFF") then
-            XM:Display_Event("BUFFFADE", "-"..XM:ShortenString(skill, XM.db["SHOWSKILL"]["BUFFFADE"])..amountDisplay, nil, nil, sourceName, destName, nil)
-        else
-            XM:Display_Event("DEBUFFFADE", "-"..XM:ShortenString(skill, XM.db["SHOWSKILL"]["DEBUFFFADE"])..amountDisplay, nil, nil, sourceName, destName, nil)
-        end
+        XM:HandleAuraChange(event, skill, true, sourceGuid, sourceName, destGuid, destName, spellId, spellName, spellSchool, suffixOne, suffixTwo)
+    elseif strfind(event, "AURA_REMOVED") or (strfind(event, 'AURA_BROKEN') and not strfind(event, 'AURA_BROKEN_SPELL')) then
+        XM:HandleAuraChange(event, skill, false, sourceGuid, sourceName, destGuid, destName, spellId, spellName, spellSchool, suffixOne, suffixTwo)
     elseif sourceGuid == XM.player.id then
         displayFrame = 'SPELLOUT'
 
@@ -361,9 +323,47 @@ function XM:COMBAT_LOG_EVENT_UNFILTERED(_, ...)
     end
 end
 
-function XM:HandleCastStart(skill, sourceName, destName)
-    local displayFrame = 'SPELLOUT'
+function XM:HandleAuraChange(event, skill, gain, sourceGuid, sourceName, destGuid, destName, spellId, spellName, spellSchool, suffixOne, suffixTwo)
+    local auraType, amount, amountDisplay, modifier = suffixOne, suffixTwo, '', '+'
+
+    if strfind(event, "SWING") then
+        auraType, amount = spellId, spellName
+    elseif strfind(event, "ENVIRONMENTAL") then
+        auraType, amount = spellName, spellSchool
+    end
+
+    if amount then amountDisplay = ' '..amount end
+    if not gain then modifier = '-' end
+
+    -- TODO: set this up in options instead
+    -- TODO: this functionality currently only exists for self...
+    if sourceGuid == XM.player.id then
+        if auraType == "BUFF" then
+            displayFrame = 'BUFF'
+        else
+            displayFrame = 'DEBUFF'
+        end
+
+        if gain then
+            displayFrame = displayFrame..'GAIN'
+        else
+            displayFrame = displayFrame..'FADE'
+        end
+
+        local msg = modifier..XM:ShortenString(skill, XM.db["SHOWSKILL"][displayFrame])..amountDisplay
+
+        XM:Display_Event(displayFrame, msg, nil, nil, sourceName, destName, nil)
+    end
+end
+
+function XM:HandleCastStart(skill, incoming, sourceGuid, sourceName, destGuid, destName)
     local name, subText, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(sourceName)
+
+    if incoming then
+        displayFrame = 'SPELLINC'
+    else
+        displayFrame = 'SPELLOUT'
+    end
 
     if endTime then
         local castTime = (endTime - startTime) / 1000
@@ -373,17 +373,17 @@ function XM:HandleCastStart(skill, sourceName, destName)
     end
 end
 
-function XM:HandleDamageEvents(event, skill, incoming, sourceGuid, sourceName, destGuid, destName, one, two, three, four, five, six, seven, eight, nine, ten)
+function XM:HandleDamageEvents(event, skill, incoming, sourceGuid, sourceName, destGuid, destName, spellId, spellName, spellSchool, suffixOne, suffixTwo, suffixThree, suffixsuffixOne, suffixFive, suffixSix, suffixSeven)
     local displayFrame = ''
     local amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush
 
     -- incoming/outgoing damage events
     if strfind(event, "SWING") then
-        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = one, XM.elements[(three)], four, five, six, seven, eight, nine, ten
+        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = spellId, XM.elements[(spellSchool)], suffixOne, suffixTwo, suffixThree, suffixsuffixOne, suffixFive, suffixSix, suffixSeven
     elseif strfind(event, "ENVIRONMENTAL") then
-        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = two, XM.elements[(four)], five, six, seven, eight, nine, ten, eleven
+        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = spellName, XM.elements[(suffixOne)], suffixTwo, suffixThree, suffixsuffixOne, suffixFive, suffixSix, suffixSeven, eleven
     else
-        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = four, XM.elements[(three)], seven, eight, nine, ten, eleven, twelve, thirteen
+        amount, element, amountResist, amountBlock, amountAbsorb, crit, glance, crush, isOffHand = suffixOne, XM.elements[(spellSchool)], suffixsuffixOne, suffixFive, suffixSix, suffixSeven, eleven, twelve, thirteen
     end
 
     local text = XM:TruncateAmount(amount)
