@@ -343,6 +343,6 @@ function XM:RegisterXMEvents()
     XM:RegisterEvent("PLAYER_LOGIN")
     XM:RegisterEvent("CHAT_MSG_SKILL")
     XM:RegisterEvent("PLAYER_TARGET_CHANGED")
-    XM:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    -- XM:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     XM:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 end

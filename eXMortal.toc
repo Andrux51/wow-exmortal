@@ -1,37 +1,31 @@
-## Interface: 70000
+## Interface: 80000
 ## Title: eXMortal
 ## Notes: Scrolling Combat Text & Advanced UI Elements
-## Version: 0.1.0
-## OptionalDeps: Ace3, LibSharedMedia-3.0
+## Version: 0.1.1
 ## SavedVariables: eXMortalDB
 ## X-Category: Combat
 ## X-Embeds: Ace3, LibSharedMedia-3.0
 
 Libs\Ace3\LibStub\LibStub.lua
-Libs\Ace3\CallbackHandler-1.0\CallbackHandler-1.0.lua
 
 Libs\Ace3\AceAddon-3.0\AceAddon-3.0.lua
-Libs\Ace3\AceGUI-3.0\AceGUI-3.0.xml
-Libs\Ace3\AceConfig-3.0\AceConfig-3.0.xml
 Libs\Ace3\AceConsole-3.0\AceConsole-3.0.lua
 Libs\Ace3\AceDB-3.0\AceDB-3.0.lua
 Libs\Ace3\AceEvent-3.0\AceEvent-3.0.lua
 Libs\Ace3\AceLocale-3.0\AceLocale-3.0.lua
 Libs\Ace3\AceDBOptions-3.0\AceDBOptions-3.0.lua
 
-Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
+Libs\LibSharedMedia-3.0\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
 
 xm.lua
 utilities.lua
 
 Localization\xm_enUS.lua
-
 Media\xm_media.lua
-
-xm_spellnames.lua
 
 Settings\xm_defaults.lua
 Settings\xm_options.lua
 
-xm_log_event_handler.lua
 xm_animation.lua
+xm_log_event_handler.lua
+xm_spellnames.lua
